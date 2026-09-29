@@ -206,17 +206,13 @@ export function SettingsSection({ settings, onUpdate }: Props) {
                   className="bg-red-600 hover:bg-red-700 text-white"
                   onClick={async () => {
                     try {
-                      const [products, sales, purchases] = await Promise.all([
-                        fetch('/api/products').then((r) => r.json()),
-                        fetch('/api/sales').then((r) => r.json()),
-                        fetch('/api/purchases').then((r) => r.json()),
-                      ])
-                      await Promise.all([
-                        ...products.map((p: { id: string }) => fetch(`/api/products/${p.id}`, { method: 'DELETE' })),
-                        ...sales.map((s: { id: string }) => fetch(`/api/sales?id=${s.id}`, { method: 'DELETE' })),
-                        ...purchases.map((p: { id: string }) => fetch(`/api/purchases?id=${p.id}`, { method: 'DELETE' })),
-                      ])
-                      toast({ title: 'تمت إعادة التعيين', description: 'حُذف كل شيء' })
+                      const res = await fetch('/api/reset', { method: 'POST' })
+                      const data = await res.json()
+                      if (!res.ok) throw new Error(data.error || 'فشل')
+                      toast({
+                        title: 'تمت إعادة التعيين',
+                        description: `حُذف ${data.deleted.sales} مبيعات، ${data.deleted.purchases} مشتريات، ${data.deleted.products} منتجات`,
+                      })
                     } catch {
                       toast({ title: 'خطأ', description: 'فشل إعادة التعيين', variant: 'destructive' })
                     }

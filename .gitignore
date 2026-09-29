@@ -52,3 +52,14 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Database (SQLite binary — local only)
+/db/*.db
+/db/*.db-journal
+
+# Uploaded files (user-generated)
+/upload/
+
+# Agent context / work logs
+/agent-ctx/
+worklog.md
