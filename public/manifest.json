@@ -1,0 +1,39 @@
+{
+  "name": "موتو ورلد 29 - إدارة المتجر",
+  "short_name": "موتو ورلد 29",
+  "description": "برنامج إدارة متجر قطع غيار الدراجات النارية - مخزون، مبيعات، مشتريات، تقارير الأرباح",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a0a0a",
+  "theme_color": "#dc2626",
+  "categories": ["business", "productivity", "shopping"],
+  "icons": [
+    {
+      "src": "/moto-world-logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/moto-world-logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/moto-world-logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/moto-world-logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "maskable"
+    }
+  ]
+}

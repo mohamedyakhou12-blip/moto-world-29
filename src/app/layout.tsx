@@ -14,9 +14,20 @@ export const metadata: Metadata = {
   description: "برنامج إدارة المخزون والمبيعات والأرباح لمتجر موتو ورلد 29",
   keywords: ["موتو ورلد 29", "إدارة", "مخزون", "مبيعات", "قطع غيار"],
   authors: [{ name: "Moto World 29" }],
+  manifest: "/manifest.json",
   icons: {
     icon: "/moto-world-logo.jpg",
     apple: "/moto-world-logo.jpg",
+    shortcut: "/moto-world-logo.jpg",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "موتو ورلد 29",
+  },
+  applicationName: "موتو ورلد 29",
+  formatDetection: {
+    telephone: false,
   },
 };
 
