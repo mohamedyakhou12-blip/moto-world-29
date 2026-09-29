@@ -64,3 +64,14 @@ server.log
 # Agent context / work logs
 /agent-ctx/
 worklog.md
+
+# Sandbox / environment artifacts (not part of the app)
+/.zscripts/
+/download/
+/examples/
+/mini-services/
+/tests/
+/Caddyfile
+dev.log
+dev.pid
+server.log
