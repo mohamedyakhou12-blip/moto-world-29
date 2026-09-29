@@ -5,7 +5,6 @@ import { Search, Truck, Plus, Minus, CheckCircle2, Package, RefreshCw, Trash2 } 
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
   Select,
@@ -14,14 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog'
 import { PageHeader } from '../app-shell'
 import { CATEGORIES, categoryLabel, formatMoney, formatDateTime } from '@/lib/format'
 import type { Product, PurchaseWithProduct, Settings } from '../types'
@@ -45,7 +36,7 @@ export function PurchasesSection({ settings }: Props) {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [cart, setCart] = useState<RestockItem[]>([])
-  const currency = settings?.currency || 'DH'
+  const currency = settings?.currency || 'دج'
   const { toast } = useToast()
 
   const loadProducts = useCallback(async () => {
@@ -55,7 +46,7 @@ export function PurchasesSection({ settings }: Props) {
       const data = await res.json()
       setProducts(data)
     } catch {
-      toast({ title: 'Erreur', description: 'Chargement impossible', variant: 'destructive' })
+      toast({ title: 'خطأ', description: 'تعذّر التحميل', variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -135,17 +126,17 @@ export function PurchasesSection({ settings }: Props) {
       })
       if (!res.ok) {
         const e = await res.json().catch(() => ({}))
-        throw new Error(e.error || 'Échec')
+        throw new Error(e.error || 'فشل')
       }
       toast({
-        title: 'Achat enregistré ✓',
-        description: `Stock mis à jour • Total: ${formatMoney(total, currency)}`,
+        title: 'تم تسجيل الشراء ✓',
+        description: `تحديث المخزون • المجموع: ${formatMoney(total, currency)}`,
       })
       setCart([])
       loadProducts()
       loadRecent()
     } catch (e) {
-      toast({ title: 'Erreur', description: e instanceof Error ? e.message : 'Échec', variant: 'destructive' })
+      toast({ title: 'خطأ', description: e instanceof Error ? e.message : 'فشل', variant: 'destructive' })
     } finally {
       setSubmitting(false)
     }
@@ -154,12 +145,12 @@ export function PurchasesSection({ settings }: Props) {
   return (
     <div>
       <PageHeader
-        title="Achats / Réapprovisionnement"
-        subtitle="Enregistrez vos achats de pièces. Le stock et le prix d'achat sont mis à jour automatiquement."
+        title="المشتريات / التزويد"
+        subtitle="سجّل مشترياتك من القطع. يُحدَّث المخزون وسعر الشراء تلقائياً."
         action={
           <Button variant="outline" size="sm" onClick={loadProducts} disabled={loading} className="border-neutral-700 text-neutral-200 hover:bg-neutral-800 hover:text-white">
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Actualiser
+            <RefreshCw className={`h-4 w-4 me-2 ${loading ? 'animate-spin' : ''}`} />
+            تحديث
           </Button>
         }
       />
@@ -168,20 +159,20 @@ export function PurchasesSection({ settings }: Props) {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex flex-col md:flex-row gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
+              <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
               <Input
-                placeholder="Rechercher une pièce..."
+                placeholder="ابحث عن قطعة..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 bg-neutral-900 border-neutral-800 text-white placeholder:text-neutral-500"
+                className="ps-9 bg-neutral-900 border-neutral-800 text-white placeholder:text-neutral-500"
               />
             </div>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-full md:w-52 bg-neutral-900 border-neutral-800 text-white">
-                <SelectValue placeholder="Catégorie" />
+                <SelectValue placeholder="الفئة" />
               </SelectTrigger>
               <SelectContent className="bg-neutral-900 border-neutral-800 text-white">
-                <SelectItem value="ALL">Toutes</SelectItem>
+                <SelectItem value="ALL">الكل</SelectItem>
                 {CATEGORIES.map((c) => (
                   <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                 ))}
@@ -189,16 +180,16 @@ export function PurchasesSection({ settings }: Props) {
             </Select>
           </div>
 
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto pr-1">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto ps-1">
             {loading && (
               <div className="col-span-full text-center py-12 text-neutral-500">
                 <Package className="h-8 w-8 mx-auto mb-2 animate-pulse" />
-                Chargement...
+                جارٍ التحميل...
               </div>
             )}
             {!loading && filtered.length === 0 && (
               <div className="col-span-full text-center py-12 text-neutral-500">
-                Aucun produit. Ajoutez-en depuis le Stock.
+                لا توجد منتجات. أضفها من المخزون.
               </div>
             )}
             {filtered.map((p) => {
@@ -207,14 +198,14 @@ export function PurchasesSection({ settings }: Props) {
                 <button
                   key={p.id}
                   onClick={() => addToCart(p)}
-                  className={`text-left p-3 rounded-xl border transition-all relative ${
+                  className={`text-start p-3 rounded-xl border transition-all relative ${
                     inCart
                       ? 'border-amber-600 bg-amber-950/30'
                       : 'border-neutral-800 bg-neutral-900 hover:border-neutral-600'
                   }`}
                 >
                   {inCart && (
-                    <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-amber-600 text-white text-xs flex items-center justify-center font-bold">
+                    <div className="absolute top-2 end-2 h-5 w-5 rounded-full bg-amber-600 text-white text-xs flex items-center justify-center font-bold">
                       {inCart.quantity}
                     </div>
                   )}
@@ -225,7 +216,7 @@ export function PurchasesSection({ settings }: Props) {
                   <div className="flex items-center justify-between">
                     <div className="font-bold text-amber-400">{formatMoney(p.purchasePrice, currency)}</div>
                     <Badge variant="outline" className="text-[10px] border-neutral-700 text-neutral-300">
-                      Stock: {p.quantity}
+                      مخزون: {p.quantity}
                     </Badge>
                   </div>
                 </button>
@@ -239,14 +230,14 @@ export function PurchasesSection({ settings }: Props) {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Truck className="h-5 w-5 text-amber-400" />
-              <h3 className="font-bold text-white">Réappro</h3>
+              <h3 className="font-bold text-white">التزويد</h3>
               {cart.length > 0 && (
                 <Badge className="bg-amber-600 text-white">{cart.length}</Badge>
               )}
             </div>
             {cart.length > 0 && (
               <Button size="sm" variant="ghost" className="text-xs text-neutral-400 hover:text-red-400" onClick={() => setCart([])}>
-                Vider
+                تفريغ
               </Button>
             )}
           </div>
@@ -254,11 +245,11 @@ export function PurchasesSection({ settings }: Props) {
           {cart.length === 0 ? (
             <div className="text-center py-10 text-neutral-500">
               <Truck className="h-10 w-10 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">Panier vide</p>
-              <p className="text-xs mt-1">Cliquez sur un produit pour le réapprovisionner</p>
+              <p className="text-sm">السلة فارغة</p>
+              <p className="text-xs mt-1">اضغط على منتج لتزويده</p>
             </div>
           ) : (
-            <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-[45vh] overflow-y-auto ps-1">
               {cart.map((x) => (
                 <div key={x.product.id} className="bg-neutral-950/60 rounded-lg p-3 border border-neutral-800">
                   <div className="flex items-start justify-between gap-2 mb-2">
@@ -282,7 +273,7 @@ export function PurchasesSection({ settings }: Props) {
                     </Button>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-neutral-400">Prix achat:</span>
+                    <span className="text-xs text-neutral-400">سعر الشراء:</span>
                     <Input
                       type="number"
                       step="0.01"
@@ -291,7 +282,7 @@ export function PurchasesSection({ settings }: Props) {
                       className="h-7 flex-1 bg-neutral-900 border-neutral-700 text-white px-2 text-sm"
                     />
                   </div>
-                  <div className="mt-2 text-right text-sm font-bold text-white">
+                  <div className="mt-2 text-end text-sm font-bold text-white">
                     {formatMoney(x.unitPrice * x.quantity, currency)}
                   </div>
                 </div>
@@ -302,7 +293,7 @@ export function PurchasesSection({ settings }: Props) {
           {cart.length > 0 && (
             <div className="mt-4 pt-4 border-t border-neutral-800 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-neutral-400">Total achat</span>
+                <span className="text-neutral-400">إجمالي الشراء</span>
                 <span className="text-white font-bold">{formatMoney(total, currency)}</span>
               </div>
               <Button
@@ -312,13 +303,13 @@ export function PurchasesSection({ settings }: Props) {
               >
                 {submitting ? (
                   <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    Validation...
+                    <RefreshCw className="h-4 w-4 me-2 animate-spin" />
+                    جارٍ التسجيل...
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    Enregistrer l'achat
+                    <CheckCircle2 className="h-4 w-4 me-2" />
+                    تسجيل الشراء
                   </>
                 )}
               </Button>
@@ -329,22 +320,22 @@ export function PurchasesSection({ settings }: Props) {
 
       {/* Recent purchases */}
       <div className="mt-6">
-        <h3 className="text-sm font-bold text-white mb-3">Achats récents</h3>
+        <h3 className="text-sm font-bold text-white mb-3">المشتريات الأخيرة</h3>
         {recent.length === 0 ? (
           <div className="text-center py-8 text-neutral-500 text-sm bg-neutral-900 rounded-lg border border-neutral-800">
-            Aucun achat enregistré
+            لا توجد مشتريات مسجلة
           </div>
         ) : (
           <Card className="bg-neutral-900 border-neutral-800 overflow-hidden">
             <div className="overflow-x-auto max-h-72 overflow-y-auto">
               <table className="w-full text-sm">
                 <thead className="bg-neutral-950/50 border-b border-neutral-800 sticky top-0">
-                  <tr className="text-left text-neutral-400">
-                    <th className="px-4 py-2 font-semibold">Date</th>
-                    <th className="px-4 py-2 font-semibold">Produit</th>
-                    <th className="px-4 py-2 font-semibold text-center">Qté</th>
-                    <th className="px-4 py-2 font-semibold text-right">Prix unitaire</th>
-                    <th className="px-4 py-2 font-semibold text-right">Total</th>
+                  <tr className="text-neutral-400">
+                    <th className="px-4 py-2 font-semibold text-start">التاريخ</th>
+                    <th className="px-4 py-2 font-semibold text-start">المنتج</th>
+                    <th className="px-4 py-2 font-semibold text-center">الكمية</th>
+                    <th className="px-4 py-2 font-semibold text-end">سعر الوحدة</th>
+                    <th className="px-4 py-2 font-semibold text-end">الإجمالي</th>
                     <th className="px-4 py-2"></th>
                   </tr>
                 </thead>
@@ -354,9 +345,9 @@ export function PurchasesSection({ settings }: Props) {
                       <td className="px-4 py-2 text-xs text-neutral-400">{formatDateTime(p.createdAt)}</td>
                       <td className="px-4 py-2 text-white">{p.product.name}</td>
                       <td className="px-4 py-2 text-center text-neutral-300">{p.quantity}</td>
-                      <td className="px-4 py-2 text-right text-neutral-300">{formatMoney(p.unitPrice, currency)}</td>
-                      <td className="px-4 py-2 text-right font-semibold text-white">{formatMoney(p.total, currency)}</td>
-                      <td className="px-4 py-2 text-right">
+                      <td className="px-4 py-2 text-end text-neutral-300">{formatMoney(p.unitPrice, currency)}</td>
+                      <td className="px-4 py-2 text-end font-semibold text-white">{formatMoney(p.total, currency)}</td>
+                      <td className="px-4 py-2 text-end">
                         <Button
                           size="sm"
                           variant="ghost"
@@ -365,15 +356,15 @@ export function PurchasesSection({ settings }: Props) {
                             try {
                               const res = await fetch(`/api/purchases?id=${p.id}`, { method: 'DELETE' })
                               if (!res.ok) throw new Error('Échec')
-                              toast({ title: 'Achat supprimé', description: 'Stock ajusté' })
+                              toast({ title: 'تم حذف الشراء', description: 'تم تعديل المخزون' })
                               loadProducts()
                               loadRecent()
                             } catch {
-                              toast({ title: 'Erreur', description: 'Suppression impossible', variant: 'destructive' })
+                              toast({ title: 'خطأ', description: 'تعذّر الحذف', variant: 'destructive' })
                             }
                           }}
                         >
-                          Annuler
+                          إلغاء
                         </Button>
                       </td>
                     </tr>

@@ -10,10 +10,17 @@ export async function GET() {
         data: {
           id: '1',
           storeName: 'Moto World 29',
-          currency: 'DH',
+          currency: 'دج',
           taxRate: 0,
           logoUrl: '/moto-world-logo.jpg',
         },
+      })
+    }
+    // Force currency to Algerian Dinar (locked)
+    if (settings.currency !== 'دج') {
+      settings = await db.settings.update({
+        where: { id: '1' },
+        data: { currency: 'دج' },
       })
     }
     return NextResponse.json(settings)
@@ -27,7 +34,7 @@ export async function GET() {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json()
-    const { storeName, currency, taxRate, logoUrl } = body
+    const { storeName, taxRate, logoUrl } = body
 
     let settings = await db.settings.findUnique({ where: { id: '1' } })
     if (!settings) {
@@ -35,7 +42,7 @@ export async function PUT(req: NextRequest) {
         data: {
           id: '1',
           storeName: storeName ?? 'Moto World 29',
-          currency: currency ?? 'DH',
+          currency: 'دج',
           taxRate: Number(taxRate) || 0,
           logoUrl: logoUrl ?? '/moto-world-logo.jpg',
         },
@@ -45,9 +52,10 @@ export async function PUT(req: NextRequest) {
         where: { id: '1' },
         data: {
           ...(storeName !== undefined && { storeName }),
-          ...(currency !== undefined && { currency }),
           ...(taxRate !== undefined && { taxRate: Number(taxRate) || 0 }),
           ...(logoUrl !== undefined && { logoUrl }),
+          // currency is locked to Algerian Dinar, always overwrite
+          currency: 'دج',
         },
       })
     }

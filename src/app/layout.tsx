@@ -1,22 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Cairo } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const cairo = Cairo({
+  variable: "--font-cairo",
+  subsets: ["arabic", "latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Moto World 29 - Gestion de Magasin",
-  description: "Logiciel de gestion de stock, ventes et profits pour Moto World 29",
-  keywords: ["Moto World 29", "gestion", "stock", "ventes", "pièces moto"],
+  title: "موتو ورلد 29 - إدارة المتجر",
+  description: "برنامج إدارة المخزون والمبيعات والأرباح لمتجر موتو ورلد 29",
+  keywords: ["موتو ورلد 29", "إدارة", "مخزون", "مبيعات", "قطع غيار"],
   authors: [{ name: "Moto World 29" }],
   icons: {
     icon: "/moto-world-logo.jpg",
@@ -30,9 +26,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" suppressHydrationWarning>
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
+        className={`${cairo.variable} antialiased bg-background text-foreground`}
+        style={{ fontFamily: "var(--font-cairo), system-ui, sans-serif" }}
       >
         {children}
         <Toaster />

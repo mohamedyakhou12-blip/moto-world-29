@@ -46,7 +46,7 @@ export function ReportsSection({ settings }: Props) {
   const [daily, setDaily] = useState<DailyReport | null>(null)
   const [monthly, setMonthly] = useState<MonthlyReport | null>(null)
   const [loading, setLoading] = useState(true)
-  const currency = settings?.currency || 'DH'
+  const currency = settings?.currency || 'دج'
   const { toast } = useToast()
 
   const load = useCallback(async () => {
@@ -63,7 +63,7 @@ export function ReportsSection({ settings }: Props) {
         setMonthly(data)
       }
     } catch {
-      toast({ title: 'Erreur', description: 'Chargement impossible', variant: 'destructive' })
+      toast({ title: 'خطأ', description: 'تعذّر التحميل', variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -108,12 +108,12 @@ export function ReportsSection({ settings }: Props) {
   return (
     <div>
       <PageHeader
-        title="Rapports"
-        subtitle="Consultez le détail de vos ventes et bénéfices par jour ou par mois."
+        title="التقارير"
+        subtitle="اطّلع على تفصيل مبيعاتك وأرباحك يومياً أو شهرياً."
         action={
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="border-neutral-700 text-neutral-200 hover:bg-neutral-800 hover:text-white">
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Actualiser
+            <RefreshCw className={`h-4 w-4 me-2 ${loading ? 'animate-spin' : ''}`} />
+            تحديث
           </Button>
         }
       />
@@ -127,7 +127,7 @@ export function ReportsSection({ settings }: Props) {
               mode === 'daily' ? 'bg-red-600 text-white' : 'text-neutral-400 hover:text-white'
             }`}
           >
-            Journalier
+            يومي
           </button>
           <button
             onClick={() => setMode('monthly')}
@@ -135,13 +135,13 @@ export function ReportsSection({ settings }: Props) {
               mode === 'monthly' ? 'bg-red-600 text-white' : 'text-neutral-400 hover:text-white'
             }`}
           >
-            Mensuel
+            شهري
           </button>
         </div>
 
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={goPrev} className="border-neutral-700 text-neutral-200 hover:bg-neutral-800 hover:text-white">
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronRight className="h-4 w-4" />
           </Button>
           {mode === 'daily' ? (
             <Input
@@ -159,31 +159,31 @@ export function ReportsSection({ settings }: Props) {
             />
           )}
           <Button size="sm" variant="outline" onClick={goNext} className="border-neutral-700 text-neutral-200 hover:bg-neutral-800 hover:text-white">
-            <ChevronRight className="h-4 w-4" />
+            <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button size="sm" variant="ghost" onClick={() => { if (mode === 'daily') setDate(todayISO()); else setMonthDate(todayISO().slice(0, 7)) }} className="text-neutral-300 hover:text-white">
-            Aujourd'hui
+            اليوم
           </Button>
         </div>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <KpiCard label="Chiffre d'affaires" value={formatMoney(revenue, currency)} icon={<Wallet className="h-5 w-5" />} tone="neutral" />
-        <KpiCard label="Coût marchandises" value={formatMoney(cost, currency)} icon={<TrendingDown className="h-5 w-5" />} tone="red" />
-        <KpiCard label="Bénéfice net" value={formatMoney(profit, currency)} icon={<TrendingUp className="h-5 w-5" />} tone="green" />
-        <KpiCard label="Nombre de ventes" value={formatNumber(count)} icon={<ShoppingBag className="h-5 w-5" />} tone="blue" />
+        <KpiCard label="رقم المعاملات" value={formatMoney(revenue, currency)} icon={<Wallet className="h-5 w-5" />} tone="neutral" />
+        <KpiCard label="تكلفة البضاعة" value={formatMoney(cost, currency)} icon={<TrendingDown className="h-5 w-5" />} tone="red" />
+        <KpiCard label="صافي الربح" value={formatMoney(profit, currency)} icon={<TrendingUp className="h-5 w-5" />} tone="green" />
+        <KpiCard label="عدد المبيعات" value={formatNumber(count)} icon={<ShoppingBag className="h-5 w-5" />} tone="blue" />
       </div>
 
       <div className="mb-4 flex items-center gap-2 rounded-lg border border-emerald-900/40 bg-emerald-950/20 px-4 py-3">
-        <span className="text-sm text-neutral-300">Marge bénéficiaire:</span>
+        <span className="text-sm text-neutral-300">هامش الربح:</span>
         <Badge className="bg-emerald-600/20 text-emerald-300 border-emerald-700/40">{margin.toFixed(1)}%</Badge>
       </div>
 
       {/* Monthly chart */}
       {mode === 'monthly' && monthly && monthly.byDay.length > 0 && (
         <Card className="bg-neutral-900 border-neutral-800 p-5 mb-6">
-          <h3 className="text-sm font-bold text-white mb-4">Évolution journalière — {monthly.monthLabel}</h3>
+          <h3 className="text-sm font-bold text-white mb-4">التطور اليومي — {monthly.monthLabel}</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthly.byDay}>
@@ -191,11 +191,11 @@ export function ReportsSection({ settings }: Props) {
                 <XAxis dataKey="day" stroke="#737373" fontSize={12} />
                 <YAxis stroke="#737373" fontSize={12} />
                 <Tooltip
-                  contentStyle={{ background: '#171717', border: '1px solid #404040', borderRadius: 8, color: '#fff' }}
-                  formatter={(v: number, n: string) => [formatMoney(v, currency), n === 'revenue' ? 'CA' : n === 'profit' ? 'Bénéfice' : 'Coût']}
-                  labelFormatter={(l) => `Jour ${l}`}
+                  contentStyle={{ background: '#171717', border: '1px solid #404040', borderRadius: 8, color: '#fff', direction: 'rtl' }}
+                  formatter={(v: number, n: string) => [formatMoney(v, currency), n === 'revenue' ? 'رقم المعاملات' : n === 'profit' ? 'الربح' : 'التكلفة']}
+                  labelFormatter={(l) => `اليوم ${l}`}
                 />
-                <Legend formatter={(v) => (v === 'revenue' ? 'CA' : v === 'profit' ? 'Bénéfice' : 'Coût')} />
+                <Legend formatter={(v) => (v === 'revenue' ? 'رقم المعاملات' : v === 'profit' ? 'الربح' : 'التكلفة')} />
                 <Bar dataKey="revenue" fill="#ef4444" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="profit" fill="#10b981" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="cost" fill="#737373" radius={[4, 4, 0, 0]} />
@@ -210,34 +210,34 @@ export function ReportsSection({ settings }: Props) {
         <div className="p-4 border-b border-neutral-800 flex items-center gap-2">
           <Calendar className="h-4 w-4 text-neutral-400" />
           <h3 className="text-sm font-bold text-white">
-            Détail des ventes
+            تفصيل المبيعات
             {mode === 'daily' && daily ? ` — ${daily.date}` : monthly ? ` — ${monthly.monthLabel}` : ''}
           </h3>
-          <Badge variant="outline" className="ml-auto border-neutral-700 text-neutral-300">{count} vente(s)</Badge>
+          <Badge variant="outline" className="ms-auto border-neutral-700 text-neutral-300">{count} عملية</Badge>
         </div>
         <div className="overflow-x-auto max-h-[50vh] overflow-y-auto">
           <table className="w-full text-sm">
             <thead className="bg-neutral-950/50 border-b border-neutral-800 sticky top-0">
-              <tr className="text-left text-neutral-400">
-                <th className="px-4 py-2 font-semibold">Date/Heure</th>
-                <th className="px-4 py-2 font-semibold">Produit</th>
-                <th className="px-4 py-2 font-semibold text-center">Qté</th>
-                <th className="px-4 py-2 font-semibold text-right">Prix vente</th>
-                <th className="px-4 py-2 font-semibold text-right">Coût</th>
-                <th className="px-4 py-2 font-semibold text-right">Total</th>
-                <th className="px-4 py-2 font-semibold text-right">Bénéfice</th>
+              <tr className="text-neutral-400">
+                <th className="px-4 py-2 font-semibold text-start">التاريخ/الوقت</th>
+                <th className="px-4 py-2 font-semibold text-start">المنتج</th>
+                <th className="px-4 py-2 font-semibold text-center">الكمية</th>
+                <th className="px-4 py-2 font-semibold text-end">سعر البيع</th>
+                <th className="px-4 py-2 font-semibold text-end">التكلفة</th>
+                <th className="px-4 py-2 font-semibold text-end">المجموع</th>
+                <th className="px-4 py-2 font-semibold text-end">الربح</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-neutral-500">Chargement...</td>
+                  <td colSpan={7} className="px-4 py-12 text-center text-neutral-500">جارٍ التحميل...</td>
                 </tr>
               )}
               {!loading && (mode === 'daily' ? daily : monthly) && (mode === 'daily' ? daily!.sales : monthly!.sales).length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-neutral-500">
-                    Aucune vente sur cette période
+                    لا توجد مبيعات في هذه الفترة
                   </td>
                 </tr>
               )}
@@ -246,21 +246,21 @@ export function ReportsSection({ settings }: Props) {
                   <td className="px-4 py-2 text-xs text-neutral-400">{formatDateTime(s.createdAt)}</td>
                   <td className="px-4 py-2 text-white">{s.product.name}</td>
                   <td className="px-4 py-2 text-center text-neutral-300">{s.quantity}</td>
-                  <td className="px-4 py-2 text-right text-neutral-300">{formatMoney(s.unitPrice, currency)}</td>
-                  <td className="px-4 py-2 text-right text-neutral-400">{formatMoney(s.unitCost * s.quantity, currency)}</td>
-                  <td className="px-4 py-2 text-right font-semibold text-white">{formatMoney(s.total, currency)}</td>
-                  <td className="px-4 py-2 text-right text-emerald-400 font-semibold">{formatMoney(s.profit, currency)}</td>
+                  <td className="px-4 py-2 text-end text-neutral-300">{formatMoney(s.unitPrice, currency)}</td>
+                  <td className="px-4 py-2 text-end text-neutral-400">{formatMoney(s.unitCost * s.quantity, currency)}</td>
+                  <td className="px-4 py-2 text-end font-semibold text-white">{formatMoney(s.total, currency)}</td>
+                  <td className="px-4 py-2 text-end text-emerald-400 font-semibold">{formatMoney(s.profit, currency)}</td>
                 </tr>
               ))}
             </tbody>
             {!loading && count > 0 && (
               <tfoot className="bg-neutral-950/50 border-t-2 border-neutral-800 sticky bottom-0">
                 <tr className="font-bold text-white">
-                  <td className="px-4 py-3" colSpan={3}>TOTAL</td>
-                  <td className="px-4 py-3 text-right text-neutral-400"></td>
-                  <td className="px-4 py-3 text-right text-neutral-300">{formatMoney(cost, currency)}</td>
-                  <td className="px-4 py-3 text-right">{formatMoney(revenue, currency)}</td>
-                  <td className="px-4 py-3 text-right text-emerald-400">{formatMoney(profit, currency)}</td>
+                  <td className="px-4 py-3" colSpan={3}>الإجمالي</td>
+                  <td className="px-4 py-3 text-end text-neutral-400"></td>
+                  <td className="px-4 py-3 text-end text-neutral-300">{formatMoney(cost, currency)}</td>
+                  <td className="px-4 py-3 text-end">{formatMoney(revenue, currency)}</td>
+                  <td className="px-4 py-3 text-end text-emerald-400">{formatMoney(profit, currency)}</td>
                 </tr>
               </tfoot>
             )}

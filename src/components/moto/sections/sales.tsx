@@ -19,7 +19,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog'
 import { PageHeader } from '../app-shell'
 import { CATEGORIES, categoryLabel, formatMoney, formatDateTime } from '@/lib/format'
@@ -45,7 +44,7 @@ export function SalesSection({ settings }: Props) {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
-  const currency = settings?.currency || 'DH'
+  const currency = settings?.currency || 'دج'
   const { toast } = useToast()
 
   const loadProducts = useCallback(async () => {
@@ -55,7 +54,7 @@ export function SalesSection({ settings }: Props) {
       const data = await res.json()
       setProducts(data)
     } catch {
-      toast({ title: 'Erreur', description: 'Chargement impossible', variant: 'destructive' })
+      toast({ title: 'خطأ', description: 'تعذّر التحميل', variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -87,14 +86,14 @@ export function SalesSection({ settings }: Props) {
 
   const addToCart = (p: Product) => {
     if (p.quantity <= 0) {
-      toast({ title: 'Stock épuisé', description: p.name, variant: 'destructive' })
+      toast({ title: 'نفد المخزون', description: p.name, variant: 'destructive' })
       return
     }
     setCart((prev) => {
       const ex = prev.find((x) => x.product.id === p.id)
       if (ex) {
         if (ex.quantity >= p.quantity) {
-          toast({ title: 'Stock maximum atteint', description: `Seulement ${p.quantity} en stock`, variant: 'destructive' })
+          toast({ title: 'الحد الأقصى للمخزون', description: `متوفر فقط ${p.quantity}`, variant: 'destructive' })
           return prev
         }
         return prev.map((x) => (x.product.id === p.id ? { ...x, quantity: x.quantity + 1 } : x))
@@ -110,7 +109,7 @@ export function SalesSection({ settings }: Props) {
           if (x.product.id !== id) return x
           const newQty = x.quantity + delta
           if (newQty > x.product.quantity) {
-            toast({ title: 'Stock insuffisant', description: `Max: ${x.product.quantity}`, variant: 'destructive' })
+            toast({ title: 'مخزون غير كافٍ', description: `الحد: ${x.product.quantity}`, variant: 'destructive' })
             return x
           }
           return { ...x, quantity: newQty }
@@ -124,7 +123,7 @@ export function SalesSection({ settings }: Props) {
       prev.map((x) => {
         if (x.product.id !== id) return x
         if (qty > x.product.quantity) {
-          toast({ title: 'Stock insuffisant', variant: 'destructive' })
+          toast({ title: 'مخزون غير كافٍ', variant: 'destructive' })
           return { ...x, quantity: x.product.quantity }
         }
         return { ...x, quantity: Math.max(1, qty) }
@@ -160,17 +159,17 @@ export function SalesSection({ settings }: Props) {
       })
       if (!res.ok) {
         const e = await res.json().catch(() => ({}))
-        throw new Error(e.error || 'Échec de la vente')
+        throw new Error(e.error || 'فشل البيع')
       }
       toast({
-        title: 'Vente enregistrée ✓',
-        description: `Total: ${formatMoney(total, currency)} • Bénéfice: ${formatMoney(totalProfit, currency)}`,
+        title: 'تم تسجيل البيع ✓',
+        description: `المجموع: ${formatMoney(total, currency)} • الربح: ${formatMoney(totalProfit, currency)}`,
       })
       setCart([])
       loadProducts()
       loadRecent()
     } catch (e) {
-      toast({ title: 'Erreur', description: e instanceof Error ? e.message : 'Échec', variant: 'destructive' })
+      toast({ title: 'خطأ', description: e instanceof Error ? e.message : 'فشل', variant: 'destructive' })
     } finally {
       setSubmitting(false)
     }
@@ -179,17 +178,17 @@ export function SalesSection({ settings }: Props) {
   return (
     <div>
       <PageHeader
-        title="Ventes"
-        subtitle="Sélectionnez les pièces vendues, ajustez les quantités, puis validez la vente."
+        title="المبيعات"
+        subtitle="اختر القطع المباعة، اضبط الكميات، ثم سجّل عملية البيع."
         action={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setShowHistory(true)} className="border-neutral-700 text-neutral-200 hover:bg-neutral-800 hover:text-white">
-              <History className="h-4 w-4 mr-2" />
-              Historique
+              <History className="h-4 w-4 me-2" />
+              السجل
             </Button>
             <Button variant="outline" size="sm" onClick={loadProducts} disabled={loading} className="border-neutral-700 text-neutral-200 hover:bg-neutral-800 hover:text-white">
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Actualiser
+              <RefreshCw className={`h-4 w-4 me-2 ${loading ? 'animate-spin' : ''}`} />
+              تحديث
             </Button>
           </div>
         }
@@ -200,20 +199,20 @@ export function SalesSection({ settings }: Props) {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex flex-col md:flex-row gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
+              <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
               <Input
-                placeholder="Rechercher une pièce..."
+                placeholder="ابحث عن قطعة..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 bg-neutral-900 border-neutral-800 text-white placeholder:text-neutral-500"
+                className="ps-9 bg-neutral-900 border-neutral-800 text-white placeholder:text-neutral-500"
               />
             </div>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-full md:w-52 bg-neutral-900 border-neutral-800 text-white">
-                <SelectValue placeholder="Catégorie" />
+                <SelectValue placeholder="الفئة" />
               </SelectTrigger>
               <SelectContent className="bg-neutral-900 border-neutral-800 text-white">
-                <SelectItem value="ALL">Toutes</SelectItem>
+                <SelectItem value="ALL">الكل</SelectItem>
                 {CATEGORIES.map((c) => (
                   <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                 ))}
@@ -221,16 +220,16 @@ export function SalesSection({ settings }: Props) {
             </Select>
           </div>
 
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto pr-1">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto ps-1">
             {loading && (
               <div className="col-span-full text-center py-12 text-neutral-500">
                 <Package className="h-8 w-8 mx-auto mb-2 animate-pulse" />
-                Chargement...
+                جارٍ التحميل...
               </div>
             )}
             {!loading && filtered.length === 0 && (
               <div className="col-span-full text-center py-12 text-neutral-500">
-                Aucun produit trouvé.
+                لا توجد منتجات مطابقة.
               </div>
             )}
             {filtered.map((p) => {
@@ -241,14 +240,14 @@ export function SalesSection({ settings }: Props) {
                   key={p.id}
                   onClick={() => addToCart(p)}
                   disabled={isOut}
-                  className={`text-left p-3 rounded-xl border transition-all relative ${
+                  className={`text-start p-3 rounded-xl border transition-all relative ${
                     inCart
                       ? 'border-red-600 bg-red-950/30'
                       : 'border-neutral-800 bg-neutral-900 hover:border-neutral-600'
                   } ${isOut ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                 >
                   {inCart && (
-                    <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-red-600 text-white text-xs flex items-center justify-center font-bold">
+                    <div className="absolute top-2 end-2 h-5 w-5 rounded-full bg-red-600 text-white text-xs flex items-center justify-center font-bold">
                       {inCart.quantity}
                     </div>
                   )}
@@ -277,14 +276,14 @@ export function SalesSection({ settings }: Props) {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <ShoppingCart className="h-5 w-5 text-red-400" />
-              <h3 className="font-bold text-white">Panier</h3>
+              <h3 className="font-bold text-white">السلة</h3>
               {cart.length > 0 && (
                 <Badge className="bg-red-600 text-white">{cart.length}</Badge>
               )}
             </div>
             {cart.length > 0 && (
               <Button size="sm" variant="ghost" className="text-xs text-neutral-400 hover:text-red-400" onClick={() => setCart([])}>
-                Vider
+                تفريغ
               </Button>
             )}
           </div>
@@ -292,11 +291,11 @@ export function SalesSection({ settings }: Props) {
           {cart.length === 0 ? (
             <div className="text-center py-10 text-neutral-500">
               <ShoppingCart className="h-10 w-10 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">Panier vide</p>
-              <p className="text-xs mt-1">Cliquez sur un produit pour l'ajouter</p>
+              <p className="text-sm">السلة فارغة</p>
+              <p className="text-xs mt-1">اضغط على منتج لإضافته</p>
             </div>
           ) : (
-            <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-[45vh] overflow-y-auto ps-1">
               {cart.map((x) => (
                 <div key={x.product.id} className="bg-neutral-950/60 rounded-lg p-3 border border-neutral-800">
                   <div className="flex items-start justify-between gap-2 mb-2">
@@ -322,7 +321,7 @@ export function SalesSection({ settings }: Props) {
                     <span className="text-xs text-neutral-500">/{x.product.quantity}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-neutral-400">Prix:</span>
+                    <span className="text-xs text-neutral-400">السعر:</span>
                     <Input
                       type="number"
                       step="0.01"
@@ -331,7 +330,7 @@ export function SalesSection({ settings }: Props) {
                       className="h-7 flex-1 bg-neutral-900 border-neutral-700 text-white px-2 text-sm"
                     />
                   </div>
-                  <div className="mt-2 text-right text-sm font-bold text-white">
+                  <div className="mt-2 text-end text-sm font-bold text-white">
                     {formatMoney(x.unitPrice * x.quantity, currency)}
                   </div>
                 </div>
@@ -342,15 +341,15 @@ export function SalesSection({ settings }: Props) {
           {cart.length > 0 && (
             <div className="mt-4 pt-4 border-t border-neutral-800 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-neutral-400">Chiffre d'affaires</span>
+                <span className="text-neutral-400">رقم المعاملات</span>
                 <span className="text-white font-semibold">{formatMoney(total, currency)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-neutral-400">Coût marchandises</span>
+                <span className="text-neutral-400">تكلفة البضاعة</span>
                 <span className="text-neutral-300">{formatMoney(totalCost, currency)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-neutral-400">Bénéfice net</span>
+                <span className="text-neutral-400">صافي الربح</span>
                 <span className="text-emerald-400 font-bold">{formatMoney(totalProfit, currency)}</span>
               </div>
               <Button
@@ -360,13 +359,13 @@ export function SalesSection({ settings }: Props) {
               >
                 {submitting ? (
                   <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    Validation...
+                    <RefreshCw className="h-4 w-4 me-2 animate-spin" />
+                    جارٍ التسجيل...
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    Valider la vente
+                    <CheckCircle2 className="h-4 w-4 me-2" />
+                    تأكيد البيع
                   </>
                 )}
               </Button>
@@ -377,23 +376,23 @@ export function SalesSection({ settings }: Props) {
 
       {/* Recent sales */}
       <div className="mt-6">
-        <h3 className="text-sm font-bold text-white mb-3">Ventes récentes</h3>
+        <h3 className="text-sm font-bold text-white mb-3">المبيعات الأخيرة</h3>
         {recent.length === 0 ? (
           <div className="text-center py-8 text-neutral-500 text-sm bg-neutral-900 rounded-lg border border-neutral-800">
-            Aucune vente pour le moment
+            لا توجد مبيعات حتى الآن
           </div>
         ) : (
           <Card className="bg-neutral-900 border-neutral-800 overflow-hidden">
             <div className="overflow-x-auto max-h-72 overflow-y-auto">
               <table className="w-full text-sm">
                 <thead className="bg-neutral-950/50 border-b border-neutral-800 sticky top-0">
-                  <tr className="text-left text-neutral-400">
-                    <th className="px-4 py-2 font-semibold">Date</th>
-                    <th className="px-4 py-2 font-semibold">Produit</th>
-                    <th className="px-4 py-2 font-semibold text-center">Qté</th>
-                    <th className="px-4 py-2 font-semibold text-right">Prix</th>
-                    <th className="px-4 py-2 font-semibold text-right">Total</th>
-                    <th className="px-4 py-2 font-semibold text-right">Bénéfice</th>
+                  <tr className="text-neutral-400">
+                    <th className="px-4 py-2 font-semibold text-start">التاريخ</th>
+                    <th className="px-4 py-2 font-semibold text-start">المنتج</th>
+                    <th className="px-4 py-2 font-semibold text-center">الكمية</th>
+                    <th className="px-4 py-2 font-semibold text-end">السعر</th>
+                    <th className="px-4 py-2 font-semibold text-end">المجموع</th>
+                    <th className="px-4 py-2 font-semibold text-end">الربح</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -402,9 +401,9 @@ export function SalesSection({ settings }: Props) {
                       <td className="px-4 py-2 text-xs text-neutral-400">{formatDateTime(s.createdAt)}</td>
                       <td className="px-4 py-2 text-white">{s.product.name}</td>
                       <td className="px-4 py-2 text-center text-neutral-300">{s.quantity}</td>
-                      <td className="px-4 py-2 text-right text-neutral-300">{formatMoney(s.unitPrice, currency)}</td>
-                      <td className="px-4 py-2 text-right font-semibold text-white">{formatMoney(s.total, currency)}</td>
-                      <td className="px-4 py-2 text-right text-emerald-400 font-semibold">{formatMoney(s.profit, currency)}</td>
+                      <td className="px-4 py-2 text-end text-neutral-300">{formatMoney(s.unitPrice, currency)}</td>
+                      <td className="px-4 py-2 text-end font-semibold text-white">{formatMoney(s.total, currency)}</td>
+                      <td className="px-4 py-2 text-end text-emerald-400 font-semibold">{formatMoney(s.profit, currency)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -418,23 +417,23 @@ export function SalesSection({ settings }: Props) {
       <Dialog open={showHistory} onOpenChange={setShowHistory}>
         <DialogContent className="bg-neutral-900 border-neutral-800 text-white max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Historique des ventes</DialogTitle>
+            <DialogTitle>سجل المبيعات</DialogTitle>
             <DialogDescription className="text-neutral-400">
-              Les {recent.length} ventes les plus récentes. Vous pouvez annuler une vente pour restaurer le stock.
+              آخر {recent.length} عملية بيع. يمكنك إلغاء عملية لإعادة المخزون.
             </DialogDescription>
           </DialogHeader>
           <div className="max-h-[60vh] overflow-y-auto">
             {recent.length === 0 ? (
-              <div className="text-center py-8 text-neutral-500">Aucune vente</div>
+              <div className="text-center py-8 text-neutral-500">لا توجد مبيعات</div>
             ) : (
               <table className="w-full text-sm">
                 <thead className="bg-neutral-950/50 border-b border-neutral-800 sticky top-0">
-                  <tr className="text-left text-neutral-400">
-                    <th className="px-3 py-2 font-semibold">Date</th>
-                    <th className="px-3 py-2 font-semibold">Produit</th>
-                    <th className="px-3 py-2 font-semibold text-center">Qté</th>
-                    <th className="px-3 py-2 font-semibold text-right">Total</th>
-                    <th className="px-3 py-2 font-semibold text-right">Bénéfice</th>
+                  <tr className="text-neutral-400">
+                    <th className="px-3 py-2 font-semibold text-start">التاريخ</th>
+                    <th className="px-3 py-2 font-semibold text-start">المنتج</th>
+                    <th className="px-3 py-2 font-semibold text-center">الكمية</th>
+                    <th className="px-3 py-2 font-semibold text-end">المجموع</th>
+                    <th className="px-3 py-2 font-semibold text-end">الربح</th>
                     <th className="px-3 py-2"></th>
                   </tr>
                 </thead>
@@ -444,9 +443,9 @@ export function SalesSection({ settings }: Props) {
                       <td className="px-3 py-2 text-xs text-neutral-400">{formatDateTime(s.createdAt)}</td>
                       <td className="px-3 py-2 text-white">{s.product.name}</td>
                       <td className="px-3 py-2 text-center text-neutral-300">{s.quantity}</td>
-                      <td className="px-3 py-2 text-right font-semibold text-white">{formatMoney(s.total, currency)}</td>
-                      <td className="px-3 py-2 text-right text-emerald-400">{formatMoney(s.profit, currency)}</td>
-                      <td className="px-3 py-2 text-right">
+                      <td className="px-3 py-2 text-end font-semibold text-white">{formatMoney(s.total, currency)}</td>
+                      <td className="px-3 py-2 text-end text-emerald-400">{formatMoney(s.profit, currency)}</td>
+                      <td className="px-3 py-2 text-end">
                         <Button
                           size="sm"
                           variant="ghost"
@@ -455,15 +454,15 @@ export function SalesSection({ settings }: Props) {
                             try {
                               const res = await fetch(`/api/sales?id=${s.id}`, { method: 'DELETE' })
                               if (!res.ok) throw new Error('Échec')
-                              toast({ title: 'Vente annulée', description: 'Stock restauré' })
+                              toast({ title: 'تم إلغاء البيع', description: 'أُعيد المخزون' })
                               loadProducts()
                               loadRecent()
                             } catch {
-                              toast({ title: 'Erreur', description: 'Annulation impossible', variant: 'destructive' })
+                              toast({ title: 'خطأ', description: 'تعذّر الإلغاء', variant: 'destructive' })
                             }
                           }}
                         >
-                          Annuler
+                          إلغاء
                         </Button>
                       </td>
                     </tr>

@@ -41,7 +41,7 @@ export function DashboardSection({ settings, onNavigate }: Props) {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
-  const currency = settings?.currency || 'DH'
+  const currency = settings?.currency || 'دج'
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -51,7 +51,7 @@ export function DashboardSection({ settings, onNavigate }: Props) {
       const json = await res.json()
       setData(json)
     } catch {
-      toast({ title: 'Erreur', description: 'Impossible de charger les données', variant: 'destructive' })
+      toast({ title: 'خطأ', description: 'تعذّر تحميل البيانات', variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -67,12 +67,12 @@ export function DashboardSection({ settings, onNavigate }: Props) {
   return (
     <div>
       <PageHeader
-        title="Tableau de bord"
-        subtitle={`Aperçu en temps réel • ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`}
+        title="لوحة القيادة"
+        subtitle={`نظرة فورية • ${new Date().toLocaleDateString('ar-DZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`}
         action={
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="border-neutral-700 text-neutral-200 hover:bg-neutral-800 hover:text-white">
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Actualiser
+            <RefreshCw className={`h-4 w-4 me-2 ${loading ? 'animate-spin' : ''}`} />
+            تحديث
           </Button>
         }
       />
@@ -83,8 +83,8 @@ export function DashboardSection({ settings, onNavigate }: Props) {
         <Card className="bg-gradient-to-br from-red-950/40 via-neutral-900 to-neutral-900 border-red-900/40 p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <div className="text-xs uppercase tracking-wider text-red-400 font-semibold">Aujourd'hui</div>
-              <div className="text-sm text-neutral-400">{new Date().toLocaleDateString('fr-FR')}</div>
+              <div className="text-xs tracking-wider text-red-400 font-semibold">اليوم</div>
+              <div className="text-sm text-neutral-400">{new Date().toLocaleDateString('ar-DZ')}</div>
             </div>
             <div className="h-10 w-10 rounded-lg bg-red-600/20 flex items-center justify-center">
               <ShoppingBag className="h-5 w-5 text-red-400" />
@@ -93,25 +93,25 @@ export function DashboardSection({ settings, onNavigate }: Props) {
 
           <div className="grid grid-cols-2 gap-4">
             <KpiBlock
-              label="Chiffre d'affaires"
+              label="رقم المعاملات"
               value={formatMoney(data?.today.revenue || 0, currency)}
               icon={<Wallet className="h-4 w-4" />}
               tone="neutral"
             />
             <KpiBlock
-              label="Bénéfice net"
+              label="صافي الربح"
               value={formatMoney(data?.today.profit || 0, currency)}
               icon={<TrendingUp className="h-4 w-4" />}
               tone="green"
             />
             <KpiBlock
-              label="Coût marchandises"
+              label="تكلفة البضاعة"
               value={formatMoney(data?.today.cost || 0, currency)}
               icon={<TrendingDown className="h-4 w-4" />}
               tone="red"
             />
             <KpiBlock
-              label="Ventes"
+              label="عدد المبيعات"
               value={formatNumber(data?.today.count || 0)}
               icon={<ShoppingBag className="h-4 w-4" />}
               tone="blue"
@@ -119,7 +119,7 @@ export function DashboardSection({ settings, onNavigate }: Props) {
           </div>
 
           <div className="mt-4 pt-4 border-t border-neutral-800 flex items-center justify-between">
-            <span className="text-xs text-neutral-400">Marge bénéficiaire</span>
+            <span className="text-xs text-neutral-400">هامش الربح</span>
             <Badge className="bg-emerald-600/20 text-emerald-300 border-emerald-700/40">
               {marginToday.toFixed(1)}%
             </Badge>
@@ -130,9 +130,9 @@ export function DashboardSection({ settings, onNavigate }: Props) {
         <Card className="bg-gradient-to-br from-neutral-900 via-neutral-900 to-red-950/30 border-neutral-800 p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <div className="text-xs uppercase tracking-wider text-neutral-400 font-semibold">Ce mois-ci</div>
+              <div className="text-xs tracking-wider text-neutral-400 font-semibold">هذا الشهر</div>
               <div className="text-sm text-neutral-400">
-                {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                {new Date().toLocaleDateString('ar-DZ', { month: 'long', year: 'numeric' })}
               </div>
             </div>
             <div className="h-10 w-10 rounded-lg bg-neutral-800 flex items-center justify-center">
@@ -142,25 +142,25 @@ export function DashboardSection({ settings, onNavigate }: Props) {
 
           <div className="grid grid-cols-2 gap-4">
             <KpiBlock
-              label="Chiffre d'affaires"
+              label="رقم المعاملات"
               value={formatMoney(data?.month.revenue || 0, currency)}
               icon={<Wallet className="h-4 w-4" />}
               tone="neutral"
             />
             <KpiBlock
-              label="Bénéfice net"
+              label="صافي الربح"
               value={formatMoney(data?.month.profit || 0, currency)}
               icon={<TrendingUp className="h-4 w-4" />}
               tone="green"
             />
             <KpiBlock
-              label="Coût marchandises"
+              label="تكلفة البضاعة"
               value={formatMoney(data?.month.cost || 0, currency)}
               icon={<TrendingDown className="h-4 w-4" />}
               tone="red"
             />
             <KpiBlock
-              label="Ventes"
+              label="عدد المبيعات"
               value={formatNumber(data?.month.count || 0)}
               icon={<ShoppingBag className="h-4 w-4" />}
               tone="blue"
@@ -168,7 +168,7 @@ export function DashboardSection({ settings, onNavigate }: Props) {
           </div>
 
           <div className="mt-4 pt-4 border-t border-neutral-800 flex items-center justify-between">
-            <span className="text-xs text-neutral-400">Marge bénéficiaire</span>
+            <span className="text-xs text-neutral-400">هامش الربح</span>
             <Badge className="bg-emerald-600/20 text-emerald-300 border-emerald-700/40">
               {marginMonth.toFixed(1)}%
             </Badge>
@@ -180,15 +180,15 @@ export function DashboardSection({ settings, onNavigate }: Props) {
       <Card className="bg-neutral-900 border-neutral-800 p-5 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-base font-bold text-white">7 derniers jours</h3>
-            <p className="text-xs text-neutral-400">Chiffre d'affaires vs Bénéfice</p>
+            <h3 className="text-base font-bold text-white">آخر 7 أيام</h3>
+            <p className="text-xs text-neutral-400">رقم المعاملات مقابل صافي الربح</p>
           </div>
           <div className="flex items-center gap-4 text-xs">
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm bg-red-500" /> CA
+              <span className="h-2.5 w-2.5 rounded-sm bg-red-500" /> رقم المعاملات
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" /> Bénéfice
+              <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" /> الربح
             </span>
           </div>
         </div>
@@ -209,8 +209,8 @@ export function DashboardSection({ settings, onNavigate }: Props) {
               <XAxis dataKey="label" stroke="#737373" fontSize={12} />
               <YAxis stroke="#737373" fontSize={12} />
               <Tooltip
-                contentStyle={{ background: '#171717', border: '1px solid #404040', borderRadius: 8, color: '#fff' }}
-                formatter={(v: number, n: string) => [formatMoney(v, currency), n === 'revenue' ? 'CA' : 'Bénéfice']}
+                contentStyle={{ background: '#171717', border: '1px solid #404040', borderRadius: 8, color: '#fff', direction: 'rtl' }}
+                formatter={(v: number, n: string) => [formatMoney(v, currency), n === 'revenue' ? 'رقم المعاملات' : 'الربح']}
               />
               <Area type="monotone" dataKey="revenue" stroke="#ef4444" strokeWidth={2} fill="url(#revGrad)" />
               <Area type="monotone" dataKey="profit" stroke="#10b981" strokeWidth={2} fill="url(#profitGrad)" />
@@ -225,25 +225,25 @@ export function DashboardSection({ settings, onNavigate }: Props) {
         <Card className="bg-neutral-900 border-neutral-800 p-5">
           <div className="flex items-center gap-2 mb-3">
             <Boxes className="h-5 w-5 text-amber-400" />
-            <h3 className="text-sm font-bold text-white">Valeur du stock</h3>
+            <h3 className="text-sm font-bold text-white">قيمة المخزون</h3>
           </div>
           <div className="space-y-3">
             <div>
-              <div className="text-xs text-neutral-400">Coût d'achat</div>
+              <div className="text-xs text-neutral-400">تكلفة الشراء</div>
               <div className="text-xl font-bold text-white">{formatMoney(data?.inventoryValue || 0, currency)}</div>
             </div>
             <div>
-              <div className="text-xs text-neutral-400">Potentiel de vente</div>
+              <div className="text-xs text-neutral-400">الإيراد المحتمل</div>
               <div className="text-xl font-bold text-emerald-400">{formatMoney(data?.potentialRevenue || 0, currency)}</div>
             </div>
             <div className="pt-3 border-t border-neutral-800">
-              <div className="text-xs text-neutral-400">Bénéfice potentiel</div>
+              <div className="text-xs text-neutral-400">الربح المحتمل</div>
               <div className="text-lg font-bold text-red-400">
                 {formatMoney((data?.potentialRevenue || 0) - (data?.inventoryValue || 0), currency)}
               </div>
             </div>
             <div className="text-xs text-neutral-500 pt-1">
-              {formatNumber(data?.totalProducts || 0)} produit(s) en stock
+              {formatNumber(data?.totalProducts || 0)} منتج في المخزون
             </div>
           </div>
         </Card>
@@ -252,10 +252,10 @@ export function DashboardSection({ settings, onNavigate }: Props) {
         <Card className="bg-neutral-900 border-neutral-800 p-5">
           <div className="flex items-center gap-2 mb-3">
             <Trophy className="h-5 w-5 text-amber-400" />
-            <h3 className="text-sm font-bold text-white">Top ventes (mois)</h3>
+            <h3 className="text-sm font-bold text-white">الأكثر مبيعاً (الشهر)</h3>
           </div>
           {data && data.topProducts.length > 0 ? (
-            <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-56 overflow-y-auto ps-1">
               {data.topProducts.map((p, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <div className={`h-7 w-7 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${
@@ -268,13 +268,13 @@ export function DashboardSection({ settings, onNavigate }: Props) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm text-white truncate">{p.name}</div>
-                    <div className="text-xs text-neutral-400">{p.quantity} vendu(s) • {formatMoney(p.revenue, currency)}</div>
+                    <div className="text-xs text-neutral-400">بيع {p.quantity} • {formatMoney(p.revenue, currency)}</div>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <EmptyHint text="Aucune vente ce mois-ci" />
+            <EmptyHint text="لا توجد مبيعات هذا الشهر" />
           )}
         </Card>
 
@@ -283,14 +283,14 @@ export function DashboardSection({ settings, onNavigate }: Props) {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-red-400" />
-              <h3 className="text-sm font-bold text-white">Stock faible</h3>
+              <h3 className="text-sm font-bold text-white">مخزون منخفض</h3>
             </div>
             <Button size="sm" variant="ghost" className="text-xs text-neutral-400 hover:text-white" onClick={() => onNavigate('purchases')}>
-              Réappro
+              تزويد
             </Button>
           </div>
           {data && data.lowStock.length > 0 ? (
-            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-56 overflow-y-auto ps-1">
               {data.lowStock.map((p) => (
                 <div key={p.id} className="flex items-center justify-between gap-2 py-1">
                   <div className="min-w-0">
@@ -298,23 +298,23 @@ export function DashboardSection({ settings, onNavigate }: Props) {
                     <div className="text-[10px] text-neutral-500">{categoryLabel(p.category)}</div>
                   </div>
                   <Badge variant="outline" className={`shrink-0 ${p.quantity === 0 ? 'border-red-600 text-red-400' : 'border-amber-600 text-amber-400'}`}>
-                    {p.quantity} restant(s)
+                    متبقٍ {p.quantity}
                   </Badge>
                 </div>
               ))}
             </div>
           ) : (
-            <EmptyHint text="Tous les stocks sont OK" />
+            <EmptyHint text="كل المخزون بحالة جيدة" />
           )}
         </Card>
       </div>
 
       {/* Quick actions */}
       <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-        <QuickAction icon={<ShoppingCart className="h-5 w-5" />} label="Nouvelle vente" onClick={() => onNavigate('sales')} tone="red" />
-        <QuickAction icon={<Truck className="h-5 w-5" />} label="Nouvel achat" onClick={() => onNavigate('purchases')} tone="amber" />
-        <QuickAction icon={<Package className="h-5 w-5" />} label="Gérer stock" onClick={() => onNavigate('inventory')} tone="blue" />
-        <QuickAction icon={<BarChart3 className="h-5 w-5" />} label="Voir rapports" onClick={() => onNavigate('reports')} tone="emerald" />
+        <QuickAction icon={<ShoppingCart className="h-5 w-5" />} label="بيع جديد" onClick={() => onNavigate('sales')} tone="red" />
+        <QuickAction icon={<Truck className="h-5 w-5" />} label="شراء جديد" onClick={() => onNavigate('purchases')} tone="amber" />
+        <QuickAction icon={<Package className="h-5 w-5" />} label="إدارة المخزون" onClick={() => onNavigate('inventory')} tone="blue" />
+        <QuickAction icon={<BarChart3 className="h-5 w-5" />} label="عرض التقارير" onClick={() => onNavigate('reports')} tone="emerald" />
       </div>
     </div>
   )

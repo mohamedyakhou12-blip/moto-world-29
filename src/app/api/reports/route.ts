@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
         const daySales = await db.sale.findMany({
           where: { createdAt: { gte: utcS, lte: utcE } },
         })
-        const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+        const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
         last7Days.push({
           date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
           label: `${dayNames[d.getDay()]} ${d.getDate()}`,
@@ -204,7 +204,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         year,
         month,
-        monthLabel: new Date(year, month - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
+        monthLabel: new Date(year, month - 1, 1).toLocaleDateString('ar-DZ', { month: 'long', year: 'numeric' }),
         sales,
         byDay: Array.from(byDay.entries()).map(([day, v]) => ({ day: Number(day), ...v })).sort((a, b) => a.day - b.day),
         revenue: sales.reduce((s, x) => s + x.total, 0),

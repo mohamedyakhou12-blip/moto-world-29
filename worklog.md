@@ -39,3 +39,40 @@ Stage Summary:
 - All requested features implemented: daily/monthly revenue (chiffre d'affaires), net profit (bénéfice net), product entry with purchase/sale prices & quantities, sale recording with automatic stock update, purchase/restock recording.
 - Tech: Next.js 16, TypeScript, Prisma+SQLite, Tailwind, shadcn/ui, Recharts.
 - Note for user: app is a web app (runs in browser) — can be installed as PWA for desktop-like experience; a true .exe is not producible in this environment.
+
+---
+Task ID: 2
+Agent: main (Z.ai Code)
+Task: Add Arabic language support (RTL) and lock the currency to Algerian Dinar (DZD / دج).
+
+Work Log:
+- Updated src/app/layout.tsx: lang="ar", dir="rtl", switched font to Cairo (Arabic+Latin subsets).
+- Updated src/lib/format.ts: all formatting now uses ar-DZ locale, default currency = "دج", Arabic day/month names, Arabic category labels (قطع الغيار / إكسسوارات / معدات).
+- Updated src/app/api/settings/route.ts: currency locked to "دج" on both GET (auto-migrate existing row) and PUT (always overwrite). Removed currency from accepted PUT body.
+- Updated src/app/api/reports/route.ts: Arabic day names for 7-day chart, Arabic month label via ar-DZ locale.
+- Updated src/app/api/seed/route.ts: all 8 demo products now have Arabic names and DZD-realistic prices (e.g. فحمات فرامل أمامية YBR125: شراء 1200 / بيع 2200).
+- Migrated existing DB settings row to currency "دج" via API PUT.
+- Cleared old French demo data (in correct FK order: sales → purchases → products) and re-seeded with Arabic content.
+- Rewrote all 6 UI sections in Arabic with RTL-aware Tailwind (ps-/pe-/ms-/me-/text-start/text-end):
+  - app-shell.tsx: Arabic nav labels, brand "موتو ورلد 29", "قطع • إكسسوارات • معدات"
+  - dashboard.tsx: KPI labels (رقم المعاملات، صافي الربح، تكلفة البضاعة، هامش الربح), RTL tooltip
+  - inventory.tsx: full Arabic UI, "منتج جديد", delete confirm in Arabic
+  - sales.tsx: Arabic POS, "السلة", "تأكيد البيع", history dialog
+  - purchases.tsx: Arabic restock UI, "التزويد", "تسجيل الشراء"
+  - reports.tsx: Arabic daily/monthly reports, RTL chart tooltip, "اليوم/الإجمالي"
+  - settings.tsx: currency field disabled with Lock icon + "الدينار الجزائري — عملة ثابتة"
+- Ran `bun run lint` — clean, no errors.
+- Verified end-to-end with Agent Browser:
+  - Dashboard renders fully in Arabic RTL with دج currency (today CA 24,900→27,100 دج after test sale, profit 10,000→11,000 دج)
+  - Sales flow: add to cart → validate → stock decremented → recent sales updated → dashboard refreshed
+  - Reports: daily and monthly views in Arabic with charts and totals
+  - Inventory: 8 Arabic products with DZD prices, correct stock (decremented after sale)
+  - Settings: currency locked showing دج with lock icon
+  - Mobile (390x844) and desktop (1440x900) verified
+
+Stage Summary:
+- Full Arabic (RTL) UI implemented across the entire application.
+- Currency locked to Algerian Dinar (دج / DZD) — cannot be changed by user.
+- Arabic Cairo font for proper Arabic typography.
+- Demo data re-seeded with Arabic product names and DZD-realistic prices.
+- Lint clean, no runtime errors, all interactions verified in browser.

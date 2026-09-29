@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Save, Store, Coins, Percent, Image as ImageIcon, Database, Trash2, AlertTriangle } from 'lucide-react'
+import { Save, Store, Coins, Percent, Image as ImageIcon, Database, Trash2, AlertTriangle, Lock } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,7 +28,6 @@ interface Props {
 
 export function SettingsSection({ settings, onUpdate }: Props) {
   const [storeName, setStoreName] = useState('')
-  const [currency, setCurrency] = useState('DH')
   const [taxRate, setTaxRate] = useState('0')
   const [saving, setSaving] = useState(false)
   const { toast } = useToast()
@@ -36,7 +35,6 @@ export function SettingsSection({ settings, onUpdate }: Props) {
   useEffect(() => {
     if (settings) {
       setStoreName(settings.storeName)
-      setCurrency(settings.currency)
       setTaxRate(String(settings.taxRate))
     }
   }, [settings])
@@ -46,12 +44,11 @@ export function SettingsSection({ settings, onUpdate }: Props) {
     try {
       await onUpdate({
         storeName,
-        currency,
         taxRate: Number(taxRate) || 0,
       })
-      toast({ title: 'Paramètres enregistrés ✓' })
+      toast({ title: 'تم حفظ الإعدادات ✓' })
     } catch {
-      toast({ title: 'Erreur', description: 'Échec de l\'enregistrement', variant: 'destructive' })
+      toast({ title: 'خطأ', description: 'فشل الحفظ', variant: 'destructive' })
     } finally {
       setSaving(false)
     }
@@ -59,17 +56,17 @@ export function SettingsSection({ settings, onUpdate }: Props) {
 
   return (
     <div>
-      <PageHeader title="Paramètres" subtitle="Configurez les informations de votre magasin." />
+      <PageHeader title="الإعدادات" subtitle="اضبط معلومات متجرك." />
 
       <div className="grid md:grid-cols-2 gap-4">
         <Card className="bg-neutral-900 border-neutral-800 p-6">
           <div className="flex items-center gap-2 mb-4">
             <Store className="h-5 w-5 text-red-400" />
-            <h3 className="font-bold text-white">Informations magasin</h3>
+            <h3 className="font-bold text-white">معلومات المتجر</h3>
           </div>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="storeName">Nom du magasin</Label>
+              <Label htmlFor="storeName">اسم المتجر</Label>
               <Input
                 id="storeName"
                 value={storeName}
@@ -80,19 +77,22 @@ export function SettingsSection({ settings, onUpdate }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="currency" className="flex items-center gap-1.5">
-                  <Coins className="h-3.5 w-3.5" /> Devise
+                  <Coins className="h-3.5 w-3.5" /> العملة
                 </Label>
-                <Input
-                  id="currency"
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  placeholder="DH, EUR, USD..."
-                  className="bg-neutral-950 border-neutral-800 text-white mt-1"
-                />
+                <div className="relative mt-1">
+                  <Input
+                    id="currency"
+                    value="دج"
+                    disabled
+                    className="bg-neutral-950 border-neutral-800 text-neutral-400 pe-9"
+                  />
+                  <Lock className="absolute end-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-500" />
+                </div>
+                <p className="text-[10px] text-neutral-500 mt-1">الدينار الجزائري — عملة ثابتة</p>
               </div>
               <div>
                 <Label htmlFor="tax" className="flex items-center gap-1.5">
-                  <Percent className="h-3.5 w-3.5" /> TVA (%)
+                  <Percent className="h-3.5 w-3.5" /> الضريبة (%)
                 </Label>
                 <Input
                   id="tax"
@@ -105,8 +105,8 @@ export function SettingsSection({ settings, onUpdate }: Props) {
               </div>
             </div>
             <Button onClick={save} disabled={saving} className="w-full bg-red-600 hover:bg-red-700 text-white">
-              <Save className="h-4 w-4 mr-2" />
-              {saving ? 'Enregistrement...' : 'Enregistrer'}
+              <Save className="h-4 w-4 me-2" />
+              {saving ? 'جارٍ الحفظ...' : 'حفظ'}
             </Button>
           </div>
         </Card>
@@ -114,16 +114,16 @@ export function SettingsSection({ settings, onUpdate }: Props) {
         <Card className="bg-neutral-900 border-neutral-800 p-6">
           <div className="flex items-center gap-2 mb-4">
             <ImageIcon className="h-5 w-5 text-red-400" />
-            <h3 className="font-bold text-white">Logo</h3>
+            <h3 className="font-bold text-white">الشعار</h3>
           </div>
           <div className="flex flex-col items-center gap-3">
             <img
               src="/moto-world-logo.jpg"
-              alt="Logo Moto World 29"
+              alt="شعار موتو ورلد 29"
               className="w-32 h-32 rounded-full object-cover border-2 border-red-600/60 shadow-[0_0_20px_rgba(220,38,38,0.35)]"
             />
             <p className="text-xs text-neutral-400 text-center">
-              Logo Moto World 29 utilisé dans toute l'application.
+              شعار موتو ورلد 29 يُستخدم في كامل التطبيق.
             </p>
           </div>
         </Card>
@@ -133,29 +133,29 @@ export function SettingsSection({ settings, onUpdate }: Props) {
       <Card className="bg-neutral-900 border-red-900/40 p-6 mt-4">
         <div className="flex items-center gap-2 mb-4">
           <Database className="h-5 w-5 text-red-400" />
-          <h3 className="font-bold text-white">Zone de données</h3>
+          <h3 className="font-bold text-white">منطقة البيانات</h3>
         </div>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
-            <p className="text-sm text-neutral-300">Charger des données de démonstration</p>
-            <p className="text-xs text-neutral-500">Ajoute des produits et ventes d'exemple pour tester l'application.</p>
+            <p className="text-sm text-neutral-300">تحميل بيانات تجريبية</p>
+            <p className="text-xs text-neutral-500">يضيف منتجات ومبيعات نموذجية لاختبار التطبيق.</p>
           </div>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="outline" className="border-amber-700 text-amber-400 hover:bg-amber-950/40">
-                <Database className="h-4 w-4 mr-2" />
-                Charger démo
+                <Database className="h-4 w-4 me-2" />
+                تحميل البيانات التجريبية
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent className="bg-neutral-900 border-neutral-800 text-white">
               <AlertDialogHeader>
-                <AlertDialogTitle>Charger les données de démo ?</AlertDialogTitle>
+                <AlertDialogTitle>تحميل البيانات التجريبية؟</AlertDialogTitle>
                 <AlertDialogDescription className="text-neutral-400">
-                  Cela ajoutera ~8 produits d'exemple et quelques ventes sur les 7 derniers jours. Ne s'applique qu'une seule fois.
+                  سيُضاف ~8 منتجات نموذجية وبعض المبيعات على آخر 7 أيام. يُطبَّق مرة واحدة فقط.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel className="bg-neutral-800 border-neutral-700 text-white hover:bg-neutral-700">Annuler</AlertDialogCancel>
+                <AlertDialogCancel className="bg-neutral-800 border-neutral-700 text-white hover:bg-neutral-700">إلغاء</AlertDialogCancel>
                 <AlertDialogAction
                   className="bg-amber-600 hover:bg-amber-700 text-white"
                   onClick={async () => {
@@ -163,16 +163,16 @@ export function SettingsSection({ settings, onUpdate }: Props) {
                       const res = await fetch('/api/seed', { method: 'POST' })
                       const data = await res.json()
                       if (data.message) {
-                        toast({ title: 'Info', description: data.message })
+                        toast({ title: 'معلوم', description: data.message })
                       } else {
-                        toast({ title: 'Données démo chargées ✓', description: `${data.productsCreated} produits ajoutés` })
+                        toast({ title: 'تم تحميل البيانات ✓', description: `${data.productsCreated} منتج مُضاف` })
                       }
                     } catch {
-                      toast({ title: 'Erreur', description: 'Échec du chargement', variant: 'destructive' })
+                      toast({ title: 'خطأ', description: 'فشل التحميل', variant: 'destructive' })
                     }
                   }}
                 >
-                  Charger
+                  تحميل
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -182,30 +182,29 @@ export function SettingsSection({ settings, onUpdate }: Props) {
         <div className="mt-4 pt-4 border-t border-neutral-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <p className="text-sm text-red-400 flex items-center gap-1.5">
-              <AlertTriangle className="h-4 w-4" /> Réinitialiser toutes les données
+              <AlertTriangle className="h-4 w-4" /> إعادة تعيين كل البيانات
             </p>
-            <p className="text-xs text-neutral-500">Supprime définitivement tous les produits, ventes et achats.</p>
+            <p className="text-xs text-neutral-500">حذف جميع المنتجات والمبيعات والمشتريات نهائياً.</p>
           </div>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="outline" className="border-red-700 text-red-400 hover:bg-red-950/40">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Tout supprimer
+                <Trash2 className="h-4 w-4 me-2" />
+                حذف الكل
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent className="bg-neutral-900 border-neutral-800 text-white">
               <AlertDialogHeader>
-                <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
+                <AlertDialogTitle>هل أنت متأكد تماماً؟</AlertDialogTitle>
                 <AlertDialogDescription className="text-neutral-400">
-                  Cette action supprimera DÉFINITIVEMENT tous les produits, ventes et achats. Impossible à annuler.
+                  سيتم حذف جميع المنتجات والمبيعات والمشتريات نهائياً. لا يمكن التراجع.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel className="bg-neutral-800 border-neutral-700 text-white hover:bg-neutral-700">Annuler</AlertDialogCancel>
+                <AlertDialogCancel className="bg-neutral-800 border-neutral-700 text-white hover:bg-neutral-700">إلغاء</AlertDialogCancel>
                 <AlertDialogAction
                   className="bg-red-600 hover:bg-red-700 text-white"
                   onClick={async () => {
-                    // Use a custom reset endpoint via fetch to /api/products etc.
                     try {
                       const [products, sales, purchases] = await Promise.all([
                         fetch('/api/products').then((r) => r.json()),
@@ -217,13 +216,13 @@ export function SettingsSection({ settings, onUpdate }: Props) {
                         ...sales.map((s: { id: string }) => fetch(`/api/sales?id=${s.id}`, { method: 'DELETE' })),
                         ...purchases.map((p: { id: string }) => fetch(`/api/purchases?id=${p.id}`, { method: 'DELETE' })),
                       ])
-                      toast({ title: 'Données réinitialisées', description: 'Tout a été supprimé' })
+                      toast({ title: 'تمت إعادة التعيين', description: 'حُذف كل شيء' })
                     } catch {
-                      toast({ title: 'Erreur', description: 'Échec de la réinitialisation', variant: 'destructive' })
+                      toast({ title: 'خطأ', description: 'فشل إعادة التعيين', variant: 'destructive' })
                     }
                   }}
                 >
-                  Tout supprimer
+                  حذف الكل
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -232,7 +231,7 @@ export function SettingsSection({ settings, onUpdate }: Props) {
       </Card>
 
       <div className="mt-6 text-center text-xs text-neutral-600">
-        Moto World 29 — Gestion v1.0 • Données stockées localement sur cet appareil
+        موتو ورلد 29 — إدارة الإصدار 1.0 • البيانات محفوظة محلياً على هذا الجهاز
       </div>
     </div>
   )

@@ -30,12 +30,12 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { key: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard, description: 'Aperçu du jour & du mois' },
-  { key: 'inventory', label: 'Stock', icon: Package, description: 'Gérer les pièces & produits' },
-  { key: 'sales', label: 'Ventes', icon: ShoppingCart, description: 'Enregistrer une vente' },
-  { key: 'purchases', label: 'Achats', icon: Truck, description: 'Enregistrer un achat / réappro' },
-  { key: 'reports', label: 'Rapports', icon: BarChart3, description: 'Détail journalier & mensuel' },
-  { key: 'settings', label: 'Paramètres', icon: SettingsIcon, description: 'Nom, devise, logo' },
+  { key: 'dashboard', label: 'لوحة القيادة', icon: LayoutDashboard, description: 'ملخص اليوم والشهر' },
+  { key: 'inventory', label: 'المخزون', icon: Package, description: 'إدارة القطع والمنتجات' },
+  { key: 'sales', label: 'المبيعات', icon: ShoppingCart, description: 'تسجيل عملية بيع' },
+  { key: 'purchases', label: 'المشتريات', icon: Truck, description: 'تسجيل شراء / تزويد' },
+  { key: 'reports', label: 'التقارير', icon: BarChart3, description: 'تفصيل يومي وشهري' },
+  { key: 'settings', label: 'الإعدادات', icon: SettingsIcon, description: 'الاسم، العملة، الشعار' },
 ]
 
 interface ShellProps {
@@ -59,20 +59,20 @@ export function AppShell({ active, onNavigate, children }: ShellProps) {
         <div className="flex items-center gap-2">
           <Image
             src="/moto-world-logo.jpg"
-            alt="Moto World 29"
+            alt="موتو ورلد 29"
             width={40}
             height={40}
             className="rounded-full border border-red-600/50"
           />
           <div className="leading-tight">
-            <div className="text-sm font-bold tracking-wide">Moto World 29</div>
-            <div className="text-[10px] text-neutral-400">Gestion</div>
+            <div className="text-sm font-bold tracking-wide">موتو ورلد 29</div>
+            <div className="text-[10px] text-neutral-400">إدارة المتجر</div>
           </div>
         </div>
         <button
           onClick={() => setMobileOpen((v) => !v)}
           className="p-2 rounded-md hover:bg-neutral-800"
-          aria-label="Menu"
+          aria-label="القائمة"
         >
           {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -82,8 +82,8 @@ export function AppShell({ active, onNavigate, children }: ShellProps) {
         {/* Sidebar */}
         <aside
           className={cn(
-            'fixed md:sticky md:top-0 inset-y-0 left-0 z-50 w-72 shrink-0 bg-neutral-950 border-r border-neutral-800 flex flex-col transition-transform md:translate-x-0',
-            mobileOpen ? 'translate-x-0' : '-translate-x-full',
+            'fixed md:sticky md:top-0 inset-y-0 md:start-0 start-0 z-50 w-72 shrink-0 bg-neutral-950 border-s border-neutral-800 flex flex-col transition-transform md:translate-x-0',
+            mobileOpen ? 'translate-x-0' : '-translate-x-full rtl:md:translate-x-0',
           )}
           style={{ height: '100vh' }}
         >
@@ -92,18 +92,18 @@ export function AppShell({ active, onNavigate, children }: ShellProps) {
             <div className="relative">
               <Image
                 src="/moto-world-logo.jpg"
-                alt="Moto World 29"
+                alt="موتو ورلد 29"
                 width={56}
                 height={56}
                 className="rounded-full border-2 border-red-600/60 shadow-[0_0_20px_rgba(220,38,38,0.35)]"
               />
             </div>
             <div className="leading-tight">
-              <div className="text-lg font-black tracking-wide bg-gradient-to-r from-red-500 via-red-400 to-neutral-200 bg-clip-text text-transparent">
-                MOTO WORLD 29
+              <div className="text-lg font-black tracking-wide bg-gradient-to-l from-red-500 via-red-400 to-neutral-200 bg-clip-text text-transparent">
+                موتو ورلد 29
               </div>
-              <div className="text-[11px] uppercase tracking-[0.2em] text-neutral-400">
-                Pièces • Accessoires • Équipements
+              <div className="text-[11px] tracking-[0.15em] text-neutral-400">
+                قطع • إكسسوارات • معدات
               </div>
             </div>
           </div>
@@ -118,7 +118,7 @@ export function AppShell({ active, onNavigate, children }: ShellProps) {
                   key={item.key}
                   onClick={() => handleNav(item.key)}
                   className={cn(
-                    'w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 transition-all group',
+                    'w-full text-start px-3 py-2.5 rounded-lg flex items-center gap-3 transition-all group',
                     isActive
                       ? 'bg-red-600 text-white shadow-[0_0_18px_rgba(220,38,38,0.45)]'
                       : 'text-neutral-300 hover:bg-neutral-900 hover:text-white',
@@ -145,9 +145,9 @@ export function AppShell({ active, onNavigate, children }: ShellProps) {
           <div className="p-4 border-t border-neutral-800 text-[10px] text-neutral-500">
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Données enregistrées localement</span>
+              <span>البيانات محفوظة محلياً</span>
             </div>
-            <div className="mt-1">© Moto World 29 — v1.0</div>
+            <div className="mt-1">© موتو ورلد 29 — الإصدار 1.0</div>
           </div>
         </aside>
 
