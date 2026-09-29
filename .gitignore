@@ -76,3 +76,10 @@ worklog.md
 dev.log
 dev.pid
 server.log
+
+# Electron build output
+/dist/
+/out-electron/
+
+# Template DB (generated during build, not committed)
+/prisma/template.db

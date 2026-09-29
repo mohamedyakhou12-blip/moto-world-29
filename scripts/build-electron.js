@@ -1,0 +1,163 @@
+// ============================================================
+//  موتو ورلد 29 - سكربت البناء لـ Electron (يعمل على كل الأنظمة)
+//  Moto World 29 - Cross-platform Electron build script
+// ============================================================
+// هذا السكربت ينسخ الملفات اللازمة إلى مجلد standalone
+// This script copies required files to the standalone folder
+
+const fs = require('fs')
+const path = require('path')
+const { execSync } = require('child_process')
+
+const root = path.resolve(__dirname, '..')
+const standalone = path.join(root, '.next', 'standalone')
+
+// ------------------------------------------------------------
+// أداة نسخ المجلدات بشكل متكرر (تعمل على كل الأنظمة)
+// Recursive directory copy (cross-platform)
+// ------------------------------------------------------------
+function copyDir(src, dest) {
+  if (!fs.existsSync(src)) {
+    console.warn(`  ⚠ المصدر غير موجود: ${src}`)
+    return false
+  }
+  fs.mkdirSync(dest, { recursive: true })
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    if (entry.name === 'node_modules') continue // تجنب نسخ node_modules بالكامل
+    const srcPath = path.join(src, entry.name)
+    const destPath = path.join(dest, entry.name)
+    if (entry.isDirectory()) {
+      copyDir(srcPath, destPath)
+    } else {
+      fs.copyFileSync(srcPath, destPath)
+    }
+  }
+  return true
+}
+
+// ------------------------------------------------------------
+// 1. تأكد من وجود مجلد standalone
+// ------------------------------------------------------------
+console.log('\n====================================')
+console.log('  بناء موتو ورلد 29 لـ Electron')
+console.log('====================================\n')
+
+if (!fs.existsSync(standalone)) {
+  console.error('❌ مجلد standalone غير موجود. شغّل: npm run build أولاً')
+  process.exit(1)
+}
+
+// ------------------------------------------------------------
+// 2. انسخ .next/static إلى standalone/.next/static
+// ------------------------------------------------------------
+console.log('📁 نسخ الملفات الثابتة (.next/static)...')
+copyDir(
+  path.join(root, '.next', 'static'),
+  path.join(standalone, '.next', 'static')
+)
+console.log('  ✓ تم')
+
+// ------------------------------------------------------------
+// 3. انسخ public إلى standalone/public
+// ------------------------------------------------------------
+console.log('📁 نسخ الملفات العامة (public)...')
+copyDir(
+  path.join(root, 'public'),
+  path.join(standalone, 'public')
+)
+console.log('  ✓ تم')
+
+// ------------------------------------------------------------
+// 4. انسخ electron إلى standalone/electron
+// ------------------------------------------------------------
+console.log('📁 نسخ ملفات Electron...')
+copyDir(
+  path.join(root, 'electron'),
+  path.join(standalone, 'electron')
+)
+console.log('  ✓ تم')
+
+// ------------------------------------------------------------
+// 5. انسخ prisma إلى standalone/prisma
+// ------------------------------------------------------------
+console.log('📁 نسخ مجلد Prisma...')
+copyDir(
+  path.join(root, 'prisma'),
+  path.join(standalone, 'prisma')
+)
+console.log('  ✓ تم')
+
+// ------------------------------------------------------------
+// 6. انسخ package.json إلى standalone
+// ------------------------------------------------------------
+console.log('📁 نسخ package.json...')
+fs.copyFileSync(
+  path.join(root, 'package.json'),
+  path.join(standalone, 'package.json')
+)
+console.log('  ✓ تم')
+
+// ------------------------------------------------------------
+// 7. انسخ عميل Prisma المُولّد (.prisma + @prisma/client)
+// ------------------------------------------------------------
+console.log('📁 نسخ عميل Prisma...')
+
+// انسخ .prisma/client (العميل المُولّد + محرك الاستعلام)
+const prismaGeneratedPath = path.join(root, 'node_modules', '.prisma')
+const standalonePrismaGenPath = path.join(standalone, 'node_modules', '.prisma')
+if (fs.existsSync(prismaGeneratedPath)) {
+  copyDir(prismaGeneratedPath, standalonePrismaGenPath)
+  console.log('  ✓ تم نسخ .prisma/client')
+} else {
+  console.warn('  ⚠ .prisma غير موجود — شغّل: npm run db:generate')
+}
+
+// انسخ @prisma/client إذا لم يكن موجوداً في standalone
+const prismaClientPkg = path.join(root, 'node_modules', '@prisma', 'client')
+const standalonePrismaClient = path.join(standalone, 'node_modules', '@prisma', 'client')
+if (fs.existsSync(prismaClientPkg) && !fs.existsSync(standalonePrismaClient)) {
+  fs.mkdirSync(path.dirname(standalonePrismaClient), { recursive: true })
+  copyDir(prismaClientPkg, standalonePrismaClient)
+  console.log('  ✓ تم نسخ @prisma/client')
+}
+
+// انسخ @prisma/engines (محرك الاستعلام)
+const prismaEnginesPath = path.join(root, 'node_modules', '@prisma', 'engines')
+const standalonePrismaEngines = path.join(standalone, 'node_modules', '@prisma', 'engines')
+if (fs.existsSync(prismaEnginesPath) && !fs.existsSync(standalonePrismaEngines)) {
+  fs.mkdirSync(path.dirname(standalonePrismaEngines), { recursive: true })
+  copyDir(prismaEnginesPath, standalonePrismaEngines)
+  console.log('  ✓ تم نسخ @prisma/engines')
+}
+
+// ------------------------------------------------------------
+// 8. أنشئ قاعدة بيانات نموذجية فارغة (template.db)
+// ------------------------------------------------------------
+console.log('🗄️ إنشاء قاعدة البيانات النموذجية...')
+const templateDbPath = path.join(root, 'prisma', 'template.db')
+
+// احذف القديم
+if (fs.existsSync(templateDbPath)) {
+  fs.unlinkSync(templateDbPath)
+}
+
+try {
+  execSync('npx prisma db push --accept-data-loss --skip-generate', {
+    env: {
+      ...process.env,
+      DATABASE_URL: `file:${templateDbPath}`,
+    },
+    cwd: root,
+    stdio: 'pipe',
+  })
+  console.log('  ✓ تم إنشاء template.db')
+} catch (e) {
+  console.error('  ❌ فشل إنشاء قاعدة البيانات النموذجية:', e.message)
+  process.exit(1)
+}
+
+console.log('\n====================================')
+console.log('  ✓ اكتمل البناء! جاهز لـ electron-builder')
+console.log('====================================')
+console.log('\nالخطوة التالية: npx electron-builder --win')
+console.log('سيتم إنشاء ملف .exe في مجلد dist/\n')
