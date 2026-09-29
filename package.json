@@ -2,6 +2,8 @@
   "name": "moto-world-29",
   "version": "1.0.0",
   "private": true,
+  "description": "موتو ورلد 29 - برنامج إدارة متجر قطع غيار الدراجات النارية",
+  "author": "Moto World 29",
   "main": "electron/main.js",
   "scripts": {
     "dev": "next dev -p 3000",
@@ -24,6 +26,9 @@
       "buildResources": "build"
     },
     "asar": false,
+    "npmRebuild": false,
+    "nodeGypRebuild": false,
+    "buildDependenciesFromSource": false,
     "files": [
       "electron/**/*",
       ".next/standalone/**/*",
