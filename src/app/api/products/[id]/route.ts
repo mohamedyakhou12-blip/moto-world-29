@@ -41,7 +41,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    await db.product.delete({ where: { id } })
+    // Delete in correct order to avoid FK constraint violations:
+    // 1. Receipt items referencing this product (will cascade to Receipt if empty, but we delete manually)
+    // 2. Purchases referencing this product
+    // 3. The product itself
+    // Note: deleting receipt items may leave empty receipts, but we keep them for history.
+    await db.$transaction([
+      db.receiptItem.deleteMany({ where: { productId: id } }),
+      db.purchase.deleteMany({ where: { productId: id } }),
+      db.product.delete({ where: { id } }),
+    ])
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('DELETE /api/products/[id] error:', error)
