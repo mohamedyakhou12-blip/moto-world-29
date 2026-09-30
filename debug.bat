@@ -7,8 +7,7 @@ echo ============================================
 echo   Moto World 29 - Debug (step by step)
 echo ============================================
 echo.
-echo This will run each step and pause.
-echo Press any key after each step to continue.
+echo Each step pauses. Press any key to continue.
 echo.
 pause
 
@@ -21,18 +20,18 @@ pause
 echo.
 echo === STEP 2: Check Node.js ===
 node --version
-if errorlevel 1 (echo FAIL: Node.js not found) else (echo OK)
+echo Node check done.
 pause
 
 echo.
 echo === STEP 3: Check npm ===
-npm --version
-if errorlevel 1 (echo FAIL: npm not found) else (echo OK)
+call npm --version
+echo npm check done.
 pause
 
 echo.
 echo === STEP 4: Check package.json ===
-if exist "package.json" (echo OK: package.json found) else (echo FAIL: package.json missing)
+if exist "package.json" (echo OK: package.json found) else (echo MISSING: package.json)
 pause
 
 echo.
@@ -41,12 +40,7 @@ if exist "node_modules" (echo OK: node_modules exists) else (echo MISSING: need 
 pause
 
 echo.
-echo === STEP 6: Check .env ===
-if exist ".env" (echo OK: .env exists) else (echo MISSING: will create)
-pause
-
-echo.
-echo === STEP 7: Install deps (if needed) ===
+echo === STEP 6: Install deps (if needed) ===
 if not exist "node_modules" (
     echo Running npm install... (5-10 min)
     call npm install
@@ -57,7 +51,7 @@ if not exist "node_modules" (
 pause
 
 echo.
-echo === STEP 8: Create .env (if needed) ===
+echo === STEP 7: Create .env (if needed) ===
 if not exist ".env" (
     copy .env.example .env
     echo Created .env
@@ -67,16 +61,15 @@ if not exist ".env" (
 pause
 
 echo.
-echo === STEP 9: Database setup ===
+echo === STEP 8: Database setup ===
 echo Running prisma db push...
 call npx prisma db push --accept-data-loss
 echo prisma exit code: %errorlevel%
 pause
 
 echo.
-echo === STEP 10: BUILD (3-8 min) ===
-echo This is the long step. Please wait.
-echo Output goes to diagnostics\build-log.txt
+echo === STEP 9: BUILD (3-8 min) ===
+echo This is the long step. Output to diagnostics\build-log.txt
 echo.
 call npm run electron:build > "diagnostics\build-log.txt" 2>&1
 echo.
@@ -84,11 +77,11 @@ echo BUILD exit code: %errorlevel%
 pause
 
 echo.
-echo === STEP 11: Check results ===
+echo === STEP 10: Check results ===
 if exist ".next\standalone\server.js" (echo OK: standalone server.js) else (echo MISSING: server.js)
 if exist "prisma\template.db" (echo OK: template.db) else (echo MISSING: template.db)
 if exist "dist" (
-    echo dist folder contents:
+    echo dist folder:
     dir /b "dist"
 ) else (
     echo MISSING: dist folder
@@ -96,7 +89,7 @@ if exist "dist" (
 pause
 
 echo.
-echo === STEP 12: Test launch (if exe exists) ===
+echo === STEP 11: Test launch (if exe exists) ===
 set "EXE_FILE="
 for %%f in ("dist\Moto World 29*.exe") do set "EXE_FILE=%%f"
 
@@ -109,40 +102,28 @@ if "%EXE_FILE%"=="" (
     timeout /t 15 /nobreak >nul
     
     echo.
-    echo Checking if app is running:
+    echo Processes:
     tasklist | findstr /i "Moto"
-    if errorlevel 1 (echo App NOT running - crashed) else (echo App is running)
-    
     echo.
-    echo Checking node.exe:
+    echo node.exe:
     tasklist | findstr /i "node"
-    
     echo.
-    echo Checking port 3000:
+    echo Port 3000:
     netstat -ano | findstr "LISTENING" | findstr "3000"
     
     echo.
-    echo Stopping app...
+    echo Stopping...
     taskkill /f /im "Moto World 29.exe" 2>nul
     taskkill /f /im node.exe 2>nul
 )
 pause
 
 echo.
-echo === STEP 13: AppData logs ===
+echo === STEP 12: AppData logs ===
 set "LOGDIR=%APPDATA%\Moto World 29\logs"
 if exist "%LOGDIR%" (
     echo Found logs:
     dir "%LOGDIR%"
-    echo.
-    echo Copying latest log...
-    for /f "delims=" %%f in ('dir /b /o-d "%LOGDIR%\*.log" 2^>nul') do (
-        type "%LOGDIR%\%%f"
-        echo. > "diagnostics\appdata-log.txt"
-        type "%LOGDIR%\%%f" >> "diagnostics\appdata-log.txt"
-        goto :logdone
-    )
-    :logdone
 ) else (
     echo No AppData logs - app never started
 )
@@ -153,9 +134,7 @@ echo ============================================
 echo   DONE!
 echo ============================================
 echo.
-echo Files created in diagnostics\:
-dir /b diagnostics
-echo.
-echo Send diagnostics\build-log.txt to your assistant.
+echo Files in diagnostics\:
+dir /b diagnostics 2>nul
 echo.
 pause
