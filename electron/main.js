@@ -1,15 +1,6 @@
 // ============================================================
-//  موتو ورلد 29 - العملية الرئيسية لإلكترون (مُصلح)
-//  Moto World 29 - Electron Main Process (FIXED)
-// ============================================================
-//
-//  إصلاحات مهمة:
-//  1. ELECTRON_RUN_AS_NODE=1 — يمنع الحلقة اللانهائية (CPU 100%)
-//  2. منفذ ديناميكي — تجنب تعارض المنافذ
-//  3. قفل نسخة واحدة — منع تشغيل عدة نسخ
-//  4. سجل أخطاء في ملف — لتشخيص المشاكل
-//  5. نافذة تحميل — أثناء تشغيل الخادم
-//
+//  موتو ورلد 29 - العملية الرئيسية لإلكترون (مُصلح بالكامل)
+//  Moto World 29 - Electron Main Process (Fully Fixed)
 // ============================================================
 
 const { app, BrowserWindow, shell, dialog } = require('electron')
@@ -22,46 +13,36 @@ const fs = require('fs')
 let mainWindow = null
 let serverProcess = null
 let serverPort = 3000
-let loadingWindow = null
+let isQuitting = false
 
 // ------------------------------------------------------------
-// نظام السجل (Logging to file for debugging)
+// نظام السجل (يُهيأ بعد app.whenReady)
 // ------------------------------------------------------------
-const logDir = app ? path.join(app.getPath('userData'), 'logs') : __dirname
+let logDir = null
 let logFile = null
+
+function initLogging() {
+  try {
+    logDir = path.join(app.getPath('userData'), 'logs')
+    fs.mkdirSync(logDir, { recursive: true })
+    logFile = path.join(logDir, `app-${new Date().toISOString().slice(0, 10)}.log`)
+    log('=== بدء تسجيل الأخطاء ===')
+  } catch (e) {
+    console.error('Failed to init logging:', e)
+  }
+}
 
 function log(msg) {
   const timestamp = new Date().toISOString()
   const line = `[${timestamp}] ${msg}`
   console.log(line)
   try {
-    if (!logFile && logDir) {
-      fs.mkdirSync(logDir, { recursive: true })
-      logFile = path.join(logDir, `app-${new Date().toISOString().slice(0, 10)}.log`)
-    }
     if (logFile) {
       fs.appendFileSync(logFile, line + '\n')
     }
   } catch (e) {
-    // ignore logging errors
+    // ignore
   }
-}
-
-// ------------------------------------------------------------
-// قفل نسخة واحدة (Single instance lock)
-// ------------------------------------------------------------
-const gotTheLock = app.requestSingleInstanceLock()
-if (!gotTheLock) {
-  log('App already running — quitting this instance')
-  app.quit()
-} else {
-  app.on('second-instance', () => {
-    // Someone tried to run a second instance, focus our window instead
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore()
-      mainWindow.focus()
-    }
-  })
 }
 
 // ------------------------------------------------------------
@@ -79,28 +60,41 @@ function getDatabaseUrl() {
       templatePath = path.join(__dirname, '..', 'prisma', 'template.db')
     }
 
+    log('[DB] Looking for template at: ' + templatePath)
+
     if (fs.existsSync(templatePath)) {
-      fs.mkdirSync(path.dirname(dbPath), { recursive: true })
-      fs.copyFileSync(templatePath, dbPath)
-      log('[DB] تم إنشاء قاعدة البيانات من النموذج: ' + dbPath)
+      try {
+        fs.mkdirSync(path.dirname(dbPath), { recursive: true })
+        fs.copyFileSync(templatePath, dbPath)
+        log('[DB] تم إنشاء قاعدة البيانات من النموذج: ' + dbPath)
+      } catch (e) {
+        log('[DB] ERROR فشل نسخ قاعدة البيانات: ' + e.message)
+      }
     } else {
-      log('[DB] WARNING: قاعدة البيانات النموججية غير موجودة: ' + templatePath)
+      log('[DB] WARNING: قاعدة البيانات النموذجية غير موجودة')
     }
+  } else {
+    log('[DB] قاعدة البيانات موجودة: ' + dbPath)
   }
 
   return `file:${dbPath}`
 }
 
 // ------------------------------------------------------------
-// إيجاد منفذ متاح (Dynamic port finder)
+// إيجاد منفذ متاح
 // ------------------------------------------------------------
 function findAvailablePort(startPort) {
   return new Promise((resolve) => {
-    const tryPort = (port) => {
+    let port = startPort
+    const tryPort = () => {
       const tester = net.createServer()
       tester.once('error', () => {
-        log('[Port] المنفذ ' + port + ' مستخدم، جرب التالي')
-        tryPort(port + 1)
+        port++
+        if (port > 3099) {
+          resolve(3100)
+          return
+        }
+        tryPort()
       })
       tester.once('listening', () => {
         tester.once('close', () => resolve(port))
@@ -108,134 +102,141 @@ function findAvailablePort(startPort) {
       })
       tester.listen(port, '127.0.0.1')
     }
-    tryPort(startPort)
+    tryPort()
   })
 }
 
 // ------------------------------------------------------------
-// تشغيل خادم Next.js كعملية Node.js خالصة (CRITICAL FIX)
+// تشغيل خادم Next.js
 // ------------------------------------------------------------
 function startServer() {
   return new Promise(async (resolve, reject) => {
-    const dbUrl = getDatabaseUrl()
-
-    // إيجاد منفذ متاح
-    serverPort = await findAvailablePort(3000)
-    log('[Server] المنفذ المختار: ' + serverPort)
-
-    // مسار server.js
-    const serverPath = app.isPackaged
-      ? path.join(process.resourcesPath, 'app', '.next', 'standalone', 'server.js')
-      : path.join(__dirname, '..', '.next', 'standalone', 'server.js')
-
-    if (!fs.existsSync(serverPath)) {
-      reject(new Error('لم يتم العثور على server.js. شغّل: npm run build أولاً\nالمسار المتوقع: ' + serverPath))
-      return
-    }
-
-    log('[Server] تشغيل الخادم من: ' + serverPath)
-
-    // ⚠️ CRITICAL FIX: ELECTRON_RUN_AS_NODE=1
-    // هذا يجعل Electron يعمل كـ Node.js خالص بدون واجهة.
-    // بدون هذا، Electron سيشغل نسخة جديدة من نفسه → حلقة لا نهائية → CPU 100% → كراش!
-    const env = {
-      ...process.env,
-      ELECTRON_RUN_AS_NODE: '1',
-      DATABASE_URL: dbUrl,
-      NODE_ENV: 'production',
-      PORT: String(serverPort),
-      HOSTNAME: '127.0.0.1',
-      // تعطيل file watching في الإنتاج
-      NEXT_TELEMETRY_DISABLED: '1',
-    }
-
-    // المجلد الذي يعمل منه الخادم
-    const serverCwd = path.dirname(serverPath)
-    log('[Server] مجلد العمل: ' + serverCwd)
-
     try {
+      const dbUrl = getDatabaseUrl()
+      serverPort = await findAvailablePort(3000)
+      log('[Server] المنفذ المختار: ' + serverPort)
+
+      // مسار server.js
+      let serverPath
+      if (app.isPackaged) {
+        serverPath = path.join(process.resourcesPath, 'app', '.next', 'standalone', 'server.js')
+      } else {
+        serverPath = path.join(__dirname, '..', '.next', 'standalone', 'server.js')
+      }
+
+      log('[Server] مسار الخادم: ' + serverPath)
+
+      if (!fs.existsSync(serverPath)) {
+        reject(new Error('لم يتم العثور على server.js:\n' + serverPath + '\n\nشغّل: npm run build'))
+        return
+      }
+
+      // مجلد عمل الخادم
+      const serverCwd = path.dirname(serverPath)
+      log('[Server] مجلد العمل: ' + serverCwd)
+
+      // ⚠️ CRITICAL: ELECTRON_RUN_AS_NODE=1
+      // يجعل Electron يعمل كـ Node.js خالص بدون واجهة
+      const env = {
+        ...process.env,
+        ELECTRON_RUN_AS_NODE: '1',
+        DATABASE_URL: dbUrl,
+        NODE_ENV: 'production',
+        PORT: String(serverPort),
+        HOSTNAME: '127.0.0.1',
+        NEXT_TELEMETRY_DISABLED: '1',
+      }
+
+      log('[Server] تشغيل الخادم...')
+      log('[Server] execPath: ' + process.execPath)
+
       serverProcess = spawn(process.execPath, [serverPath], {
         env: env,
         cwd: serverCwd,
         windowsHide: true,
         stdio: ['pipe', 'pipe', 'pipe'],
       })
-    } catch (err) {
-      reject(new Error('فشل تشغيل الخادم: ' + err.message))
-      return
-    }
 
-    serverProcess.stdout.on('data', (data) => {
-      const text = data.toString().trim()
-      if (text) log('[server:out] ' + text)
-    })
+      serverProcess.stdout.on('data', (data) => {
+        const text = data.toString().trim()
+        if (text) log('[server:out] ' + text)
+      })
 
-    serverProcess.stderr.on('data', (data) => {
-      const text = data.toString().trim()
-      if (text) log('[server:err] ' + text)
-    })
+      serverProcess.stderr.on('data', (data) => {
+        const text = data.toString().trim()
+        if (text) log('[server:err] ' + text)
+      })
 
-    serverProcess.on('error', (err) => {
-      log('[Server] خطأ: ' + err.message)
-      reject(err)
-    })
+      serverProcess.on('error', (err) => {
+        log('[Server] خطأ في التشغيل: ' + err.message)
+        if (!isQuitting) reject(err)
+      })
 
-    serverProcess.on('exit', (code, signal) => {
-      log('[Server] انتهت العملية: code=' + code + ' signal=' + signal)
-      serverProcess = null
-    })
+      serverProcess.on('exit', (code, signal) => {
+        log('[Server] انتهت العملية: code=' + code + ' signal=' + signal)
+        serverProcess = null
+      })
 
-    // انتظر حتى يصبح الخادم جاهزاً
-    let attempts = 0
-    const maxAttempts = 90 // 45 ثانية كحد أقصى
+      // انتظر حتى يصبح الخادم جاهزاً
+      let attempts = 0
+      const maxAttempts = 60 // 30 ثانية
 
-    const checkServer = () => {
-      const req = http.get(`http://127.0.0.1:${serverPort}`, (res) => {
-        if (res.statusCode < 500) {
-          log('[Server] الخادم جاهز ✓')
-          resolve()
-        } else {
+      const checkServer = () => {
+        const req = http.get(`http://127.0.0.1:${serverPort}/`, (res) => {
+          log('[Server] استجابة HTTP: ' + res.statusCode)
+          if (res.statusCode < 500) {
+            log('[Server] الخادم جاهز ✓')
+            res.destroy()
+            resolve()
+          } else {
+            res.destroy()
+            retry()
+          }
+        })
+
+        req.on('error', (e) => {
           retry()
-        }
-        req.destroy()
-      })
-
-      req.on('error', () => retry())
-      req.setTimeout(1500, () => {
-        req.destroy()
-        retry()
-      })
-    }
-
-    const retry = () => {
-      attempts++
-      if (attempts >= maxAttempts) {
-        reject(new Error('الخادم لم يبدأ خلال 45 ثانية. راجع ملف السجل: ' + (logFile || 'logs/')))
-      } else {
-        setTimeout(checkServer, 500)
+        })
+        req.setTimeout(2000, () => {
+          req.destroy()
+          retry()
+        })
       }
-    }
 
-    setTimeout(checkServer, 1500)
+      const retry = () => {
+        attempts++
+        if (attempts >= maxAttempts) {
+          reject(new Error('الخادم لم يبدأ خلال 30 ثانية\nراجع السجل: ' + (logFile || 'logs/')))
+        } else {
+          setTimeout(checkServer, 500)
+        }
+      }
+
+      // ابدأ الفحص بعد ثانية
+      setTimeout(checkServer, 1000)
+    } catch (err) {
+      log('[Server] استثناء: ' + err.message + '\n' + err.stack)
+      reject(err)
+    }
   })
 }
 
 // ------------------------------------------------------------
-// إيقاف الخادم (بقوة)
+// إيقاف الخادم
 // ------------------------------------------------------------
 function killServer() {
-  if (!serverProcess) return
+  if (!serverProcess) {
+    log('[Server] لا توجد عملية لإيقافها')
+    return
+  }
 
-  log('[Server] إيقاف الخادم...')
+  log('[Server] إيقاف الخادم... PID: ' + serverProcess.pid)
   try {
     if (process.platform === 'win32') {
-      // على ويندوز، اقتل شجرة العمليات كاملة
       execSync(`taskkill /pid ${serverProcess.pid} /T /F`, { stdio: 'ignore' })
     } else {
       serverProcess.kill('SIGTERM')
-      setTimeout(() => {
-        try { serverProcess && serverProcess.kill('SIGKILL') } catch (e) { /* ignore */ }
-      }, 2000)
+      try { serverProcess.kill('SIGKILL') } catch (e) { /* ignore */ }
     }
   } catch (e) {
     log('[Server] خطأ أثناء الإيقاف: ' + e.message)
@@ -244,80 +245,31 @@ function killServer() {
 }
 
 // ------------------------------------------------------------
-// نافذة التحميل (Loading window)
-// ------------------------------------------------------------
-function createLoadingWindow() {
-  loadingWindow = new BrowserWindow({
-    width: 400,
-    height: 300,
-    frame: false,
-    transparent: true,
-    resizable: false,
-    minimizable: false,
-    maximizable: false,
-    show: true,
-    alwaysOnTop: true,
-    webPreferences: {
-      contextIsolation: true,
-    },
-  })
-
-  loadingWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(`
-    <!DOCTYPE html>
-    <html dir="rtl" lang="ar">
-    <head>
-      <meta charset="utf-8">
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-          font-family: 'Segoe UI', Tahoma, sans-serif;
-          background: #0a0a0a;
-          color: #fff;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          height: 100vh;
-          border-radius: 12px;
-          border: 1px solid #dc2626;
-        }
-        .logo {
-          width: 70px; height: 70px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #dc2626, #7f1d1d);
-          display: flex; align-items: center; justify-content: center;
-          font-size: 28px; font-weight: bold;
-          margin-bottom: 20px;
-          box-shadow: 0 0 30px rgba(220,38,38,0.5);
-        }
-        h1 { font-size: 18px; margin-bottom: 8px; }
-        p { color: #a3a3a3; font-size: 12px; margin-bottom: 20px; }
-        .spinner {
-          width: 30px; height: 30px;
-          border: 3px solid #262626;
-          border-top-color: #dc2626;
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-      </style>
-    </head>
-    <body>
-      <div class="logo">M29</div>
-      <h1>موتو ورلد 29</h1>
-      <p>جارٍ تشغيل التطبيق...</p>
-      <div class="spinner"></div>
-    </body>
-    </html>
-  `))
-
-  loadingWindow.on('closed', () => { loadingWindow = null })
-}
-
-// ------------------------------------------------------------
 // إنشاء النافذة الرئيسية
 // ------------------------------------------------------------
 function createWindow() {
+  // مسار الأيقونة (مع fallback)
+  let iconPath = null
+  const possibleIcons = [
+    app.isPackaged
+      ? path.join(process.resourcesPath, 'app', '.next', 'standalone', 'public', 'moto-world-logo.jpg')
+      : path.join(__dirname, '..', 'public', 'moto-world-logo.jpg'),
+    app.isPackaged
+      ? path.join(process.resourcesPath, 'app', 'public', 'moto-world-logo.jpg')
+      : null,
+  ].filter(Boolean)
+
+  for (const p of possibleIcons) {
+    if (fs.existsSync(p)) {
+      iconPath = p
+      log('[Window] أيقونة موجودة: ' + p)
+      break
+    }
+  }
+  if (!iconPath) {
+    log('[Window] لم يتم العثور على الأيقونة، سيستخدم Electron أيقونة افتراضية')
+  }
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -325,9 +277,9 @@ function createWindow() {
     minHeight: 650,
     backgroundColor: '#0a0a0a',
     title: 'موتو ورلد 29',
-    icon: path.join(__dirname, '..', 'public', 'moto-world-logo.jpg'),
+    ...(iconPath ? { icon: iconPath } : {}),
     autoHideMenuBar: true,
-    show: false,
+    show: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -335,16 +287,9 @@ function createWindow() {
     },
   })
 
-  mainWindow.once('ready-to-show', () => {
-    if (loadingWindow) {
-      loadingWindow.close()
-      loadingWindow = null
-    }
-    mainWindow.show()
-    mainWindow.focus()
-  })
-
-  mainWindow.loadURL(`http://127.0.0.1:${serverPort}`)
+  const url = `http://127.0.0.1:${serverPort}`
+  log('[Window] تحميل URL: ' + url)
+  mainWindow.loadURL(url)
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http')) {
@@ -357,32 +302,36 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null
   })
+
+  log('[Window] تم إنشاء النافذة ✓')
 }
 
 // ------------------------------------------------------------
 // دورة حياة التطبيق
 // ------------------------------------------------------------
 app.whenReady().then(async () => {
+  initLogging()
   log('=== موتو ورلد 29 - بدء التشغيل ===')
   log('App packaged: ' + app.isPackaged)
   log('process.execPath: ' + process.execPath)
+  log('process.resourcesPath: ' + (process.resourcesPath || 'N/A'))
   log('userData: ' + app.getPath('userData'))
-
-  // اعرض نافذة التحميل أولاً
-  createLoadingWindow()
+  log('Platform: ' + process.platform)
+  log('Arch: ' + process.arch)
+  log('Electron version: ' + process.versions.electron)
+  log('Node version: ' + process.versions.node)
 
   try {
     await startServer()
+    log('[App] الخادم يعمل، إنشاء النافذة...')
     createWindow()
+    log('[App] التطبيق يعمل بنجاح ✓')
   } catch (err) {
     log('[App] فشل التشغيل: ' + err.message)
-    if (loadingWindow) {
-      loadingWindow.close()
-      loadingWindow = null
-    }
+    log('[App] Stack: ' + (err.stack || 'no stack'))
     dialog.showErrorBox(
-      'خطأ في التشغيل',
-      `تعذر تشغيل التطبيق:\n\n${err.message}\n\nراجع ملف السجل في:\n${logFile || app.getPath('userData')}`
+      'خطأ في تشغيل موتو ورلد 29',
+      'تعذر تشغيل التطبيق:\n\n' + err.message + '\n\nراجع ملف السجل:\n' + (logFile || app.getPath('userData'))
     )
     app.quit()
   }
@@ -390,34 +339,20 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', () => {
   log('=== window-all-closed ===')
+  isQuitting = true
   killServer()
   app.quit()
 })
 
 app.on('before-quit', () => {
   log('=== before-quit ===')
+  isQuitting = true
   killServer()
-})
-
-app.on('will-quit', () => {
-  log('=== will-quit ===')
-  killServer()
-})
-
-process.on('exit', () => {
-  killServer()
-})
-
-process.on('SIGINT', () => {
-  killServer()
-  process.exit(0)
-})
-
-process.on('SIGTERM', () => {
-  killServer()
-  process.exit(0)
 })
 
 process.on('uncaughtException', (err) => {
   log('[FATAL] uncaughtException: ' + err.message + '\n' + err.stack)
+  try {
+    dialog.showErrorBox('خطأ قاتل', err.message + '\n\nراجع: ' + (logFile || ''))
+  } catch (e) { /* ignore */ }
 })
