@@ -247,7 +247,7 @@ export function ReportsSection({ settings }: Props) {
                   <td className="px-4 py-2 text-xs text-neutral-400">{formatDateTime(r.createdAt)}</td>
                   <td className="px-4 py-2 text-white">{r.customerName || <span className="text-neutral-500">—</span>}</td>
                   <td className="px-4 py-2 text-center text-neutral-300">{r.itemCount}</td>
-                  <td className="px-4 py-2 text-end text-neutral-400">{formatMoney(r.subtotal - r.profit - (r.discount || 0) > 0 ? r.subtotal - r.profit - (r.discount || 0) : 0, currency)}</td>
+                  <td className="px-4 py-2 text-end text-neutral-400">{formatMoney(r.total - r.profit, currency)}</td>
                   <td className="px-4 py-2 text-end font-semibold text-white">{formatMoney(r.total, currency)}</td>
                   <td className="px-4 py-2 text-end text-emerald-400 font-semibold">{formatMoney(r.profit, currency)}</td>
                 </tr>

@@ -66,8 +66,10 @@ export async function GET(req: NextRequest) {
 
       const todayRevenue = todayReceipts.reduce((s, x) => s + x.total, 0)
       const todayProfit = todayReceipts.reduce((s, x) => s + x.profit, 0)
-      const todayCost = todayReceipts.reduce((s, x) => s + (x.subtotal - x.profit - (x.discount || 0) < 0 ? 0 : 0), 0) +
-        todayReceipts.reduce((s, r) => s + r.items.reduce((ss, i) => ss + i.unitCost * i.quantity, 0), 0)
+      const todayCost = todayReceipts.reduce(
+        (s, r) => s + r.items.reduce((ss, i) => ss + i.unitCost * i.quantity, 0),
+        0,
+      )
       const todayCount = todayReceipts.length
 
       const monthRevenue = monthReceipts.reduce((s, x) => s + x.total, 0)

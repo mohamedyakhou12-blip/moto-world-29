@@ -350,9 +350,17 @@ app.on('before-quit', () => {
   killServer()
 })
 
+process.on('exit', () => {
+  killServer()
+})
+
 process.on('uncaughtException', (err) => {
   log('[FATAL] uncaughtException: ' + err.message + '\n' + err.stack)
   try {
     dialog.showErrorBox('خطأ قاتل', err.message + '\n\nراجع: ' + (logFile || ''))
   } catch (e) { /* ignore */ }
+})
+
+process.on('unhandledRejection', (reason) => {
+  log('[FATAL] unhandledRejection: ' + String(reason))
 })
