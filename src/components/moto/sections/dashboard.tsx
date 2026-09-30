@@ -34,7 +34,7 @@ import { useToast } from '@/hooks/use-toast'
 
 interface Props {
   settings: Settings | null
-  onNavigate: (k: 'inventory' | 'sales' | 'purchases' | 'reports' | 'settings') => void
+  onNavigate: (k: 'inventory' | 'pos' | 'purchases' | 'receipts' | 'reports' | 'settings') => void
 }
 
 export function DashboardSection({ settings, onNavigate }: Props) {
@@ -311,7 +311,7 @@ export function DashboardSection({ settings, onNavigate }: Props) {
 
       {/* Quick actions */}
       <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-        <QuickAction icon={<ShoppingCart className="h-5 w-5" />} label="بيع جديد" onClick={() => onNavigate('sales')} tone="red" />
+        <QuickAction icon={<ShoppingCart className="h-5 w-5" />} label="بيع جديد" onClick={() => onNavigate('pos')} tone="red" />
         <QuickAction icon={<Truck className="h-5 w-5" />} label="شراء جديد" onClick={() => onNavigate('purchases')} tone="amber" />
         <QuickAction icon={<Package className="h-5 w-5" />} label="إدارة المخزون" onClick={() => onNavigate('inventory')} tone="blue" />
         <QuickAction icon={<BarChart3 className="h-5 w-5" />} label="عرض التقارير" onClick={() => onNavigate('reports')} tone="emerald" />

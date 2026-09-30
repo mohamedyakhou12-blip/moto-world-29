@@ -1,10 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
-// GET /api/products - list all products
-export async function GET() {
+// GET /api/products?q=search&category=PIECES
+export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url)
+    const q = searchParams.get('q') || ''
+    const category = searchParams.get('category') || ''
+
+    const where: { name?: { contains: string }; sku?: { contains: string }; category?: string } = {}
+    if (q) {
+      where.OR = [
+        { name: { contains: q } },
+        { sku: { contains: q } },
+      ]
+    }
+    if (category && category !== 'ALL') {
+      where.category = category
+    }
+
     const products = await db.product.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
     })
     return NextResponse.json(products)
@@ -21,7 +37,7 @@ export async function POST(req: NextRequest) {
     const { name, category, sku, purchasePrice, salePrice, quantity, minQuantity } = body
 
     if (!name || !name.trim()) {
-      return NextResponse.json({ error: 'Le nom du produit est requis' }, { status: 400 })
+      return NextResponse.json({ error: 'الاسم مطلوب' }, { status: 400 })
     }
 
     const product = await db.product.create({

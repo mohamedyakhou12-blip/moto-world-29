@@ -10,40 +10,59 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// المنتجات - القطع في المخزون
 model Product {
-  id            String     @id @default(cuid())
+  id            String         @id @default(cuid())
   name          String
-  category      String     @default("PIECES") // PIECES, ACCESSOIRES, EQUIPEMENTS
-  sku           String?    // reference / code
-  purchasePrice Float      @default(0) // prix d'achat
-  salePrice     Float      @default(0) // prix de vente
-  quantity      Int        @default(0) // stock actuel
-  minQuantity   Int        @default(0) // stock d'alerte
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  sales         Sale[]
+  category      String         @default("PIECES") // PIECES, ACCESSOIRES, EQUIPEMENTS
+  sku           String?
+  purchasePrice Float          @default(0) // سعر الشراء
+  salePrice     Float          @default(0) // سعر البيع
+  quantity      Int            @default(0) // المخزون الحالي
+  minQuantity   Int            @default(0) // حد التنبيه
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  receiptItems  ReceiptItem[]
   purchases     Purchase[]
 }
 
-model Sale {
-  id          String   @id @default(cuid())
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id])
-  quantity    Int
-  unitPrice   Float    // prix de vente au moment de la vente
-  unitCost    Float    // prix d'achat au moment de la vente
-  total       Float    // quantity * unitPrice (chiffre d'affaires)
-  profit      Float    // (unitPrice - unitCost) * quantity (bénéfice net)
-  note        String?
-  createdAt   DateTime @default(now())
+// البون (الفاتورة) - زبون يشتري عدة أشياء دفعة واحدة
+model Receipt {
+  id           String         @id @default(cuid())
+  number       Int            @unique @default(1) // رقم البون التسلسلي
+  customerName String?        // اسم الزبون (اختياري)
+  subtotal     Float          @default(0) // المجموع قبل الخصم
+  discount     Float          @default(0) // خصم
+  total        Float          @default(0) // المجموع النهائي
+  profit       Float          @default(0) // صافي الربح
+  itemCount    Int            @default(0) // عدد القطع
+  note         String?
+  createdAt    DateTime       @default(now())
+  items        ReceiptItem[]
 }
 
+// عناصر البون - كل قطعة في البون
+model ReceiptItem {
+  id          String   @id @default(cuid())
+  receiptId   String
+  receipt     Receipt  @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  productName String   // نسخة من اسم المنتج (للطباعة حتى لو حُذف المنتج)
+  quantity    Int
+  unitPrice   Float    // سعر البيع وقت الشراء
+  unitCost    Float    // سعر الشراء وقت الشراء (لحساب الربح)
+  total       Float    // quantity * unitPrice
+  profit      Float    // (unitPrice - unitCost) * quantity
+}
+
+// المشتريات - تسجيل التزويد (للقطع الموجودة + الجديدة)
 model Purchase {
   id          String   @id @default(cuid())
   productId   String
   product     Product  @relation(fields: [productId], references: [id])
   quantity    Int
-  unitPrice   Float    // prix d'achat
+  unitPrice   Float    // سعر الشراء
   total       Float    // quantity * unitPrice
   note        String?
   createdAt   DateTime @default(now())
@@ -52,7 +71,7 @@ model Purchase {
 model Settings {
   id          String   @id @default("1")
   storeName   String   @default("Moto World 29")
-  currency    String   @default("DH")
+  currency    String   @default("دج")
   taxRate     Float    @default(0)
   logoUrl     String?
 }

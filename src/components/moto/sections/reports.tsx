@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '../app-shell'
 import { formatMoney, formatNumber, formatDateTime, todayISO } from '@/lib/format'
-import type { Settings, SaleWithProduct } from '../types'
+import type { Settings, Receipt, ReceiptWithItems } from '../types'
 import { useToast } from '@/hooks/use-toast'
 
 interface Props {
@@ -20,7 +20,7 @@ type Mode = 'daily' | 'monthly'
 
 interface DailyReport {
   date: string
-  sales: SaleWithProduct[]
+  receipts: ReceiptWithItems[]
   revenue: number
   cost: number
   profit: number
@@ -31,7 +31,7 @@ interface MonthlyReport {
   year: number
   month: number
   monthLabel: string
-  sales: SaleWithProduct[]
+  receipts: Receipt[]
   byDay: Array<{ day: number; revenue: number; profit: number; cost: number; count: number }>
   revenue: number
   cost: number
@@ -210,21 +210,21 @@ export function ReportsSection({ settings }: Props) {
         <div className="p-4 border-b border-neutral-800 flex items-center gap-2">
           <Calendar className="h-4 w-4 text-neutral-400" />
           <h3 className="text-sm font-bold text-white">
-            تفصيل المبيعات
+            تفصيل البونات
             {mode === 'daily' && daily ? ` — ${daily.date}` : monthly ? ` — ${monthly.monthLabel}` : ''}
           </h3>
-          <Badge variant="outline" className="ms-auto border-neutral-700 text-neutral-300">{count} عملية</Badge>
+          <Badge variant="outline" className="ms-auto border-neutral-700 text-neutral-300">{count} بون</Badge>
         </div>
         <div className="overflow-x-auto max-h-[50vh] overflow-y-auto">
           <table className="w-full text-sm">
             <thead className="bg-neutral-950/50 border-b border-neutral-800 sticky top-0">
               <tr className="text-neutral-400">
-                <th className="px-4 py-2 font-semibold text-start">التاريخ/الوقت</th>
-                <th className="px-4 py-2 font-semibold text-start">المنتج</th>
-                <th className="px-4 py-2 font-semibold text-center">الكمية</th>
-                <th className="px-4 py-2 font-semibold text-end">سعر البيع</th>
+                <th className="px-4 py-2 font-semibold text-start">#</th>
+                <th className="px-4 py-2 font-semibold text-start">التاريخ</th>
+                <th className="px-4 py-2 font-semibold text-start">الزبون</th>
+                <th className="px-4 py-2 font-semibold text-center">القطع</th>
                 <th className="px-4 py-2 font-semibold text-end">التكلفة</th>
-                <th className="px-4 py-2 font-semibold text-end">المجموع</th>
+                <th className="px-4 py-2 font-semibold text-end">الإجمالي</th>
                 <th className="px-4 py-2 font-semibold text-end">الربح</th>
               </tr>
             </thead>
@@ -234,30 +234,29 @@ export function ReportsSection({ settings }: Props) {
                   <td colSpan={7} className="px-4 py-12 text-center text-neutral-500">جارٍ التحميل...</td>
                 </tr>
               )}
-              {!loading && (mode === 'daily' ? daily : monthly) && (mode === 'daily' ? daily!.sales : monthly!.sales).length === 0 && (
+              {!loading && (mode === 'daily' ? daily : monthly) && (mode === 'daily' ? daily!.receipts : monthly!.receipts).length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-neutral-500">
-                    لا توجد مبيعات في هذه الفترة
+                    لا توجد بونات في هذه الفترة
                   </td>
                 </tr>
               )}
-              {!loading && (mode === 'daily' ? daily?.sales : monthly?.sales)?.map((s) => (
-                <tr key={s.id} className="border-b border-neutral-800/60 hover:bg-neutral-800/30">
-                  <td className="px-4 py-2 text-xs text-neutral-400">{formatDateTime(s.createdAt)}</td>
-                  <td className="px-4 py-2 text-white">{s.product.name}</td>
-                  <td className="px-4 py-2 text-center text-neutral-300">{s.quantity}</td>
-                  <td className="px-4 py-2 text-end text-neutral-300">{formatMoney(s.unitPrice, currency)}</td>
-                  <td className="px-4 py-2 text-end text-neutral-400">{formatMoney(s.unitCost * s.quantity, currency)}</td>
-                  <td className="px-4 py-2 text-end font-semibold text-white">{formatMoney(s.total, currency)}</td>
-                  <td className="px-4 py-2 text-end text-emerald-400 font-semibold">{formatMoney(s.profit, currency)}</td>
+              {!loading && (mode === 'daily' ? daily?.receipts : monthly?.receipts)?.map((r) => (
+                <tr key={r.id} className="border-b border-neutral-800/60 hover:bg-neutral-800/30">
+                  <td className="px-4 py-2"><Badge className="bg-red-600/20 text-red-300 border border-red-700/40">#{r.number}</Badge></td>
+                  <td className="px-4 py-2 text-xs text-neutral-400">{formatDateTime(r.createdAt)}</td>
+                  <td className="px-4 py-2 text-white">{r.customerName || <span className="text-neutral-500">—</span>}</td>
+                  <td className="px-4 py-2 text-center text-neutral-300">{r.itemCount}</td>
+                  <td className="px-4 py-2 text-end text-neutral-400">{formatMoney(r.subtotal - r.profit - (r.discount || 0) > 0 ? r.subtotal - r.profit - (r.discount || 0) : 0, currency)}</td>
+                  <td className="px-4 py-2 text-end font-semibold text-white">{formatMoney(r.total, currency)}</td>
+                  <td className="px-4 py-2 text-end text-emerald-400 font-semibold">{formatMoney(r.profit, currency)}</td>
                 </tr>
               ))}
             </tbody>
             {!loading && count > 0 && (
               <tfoot className="bg-neutral-950/50 border-t-2 border-neutral-800 sticky bottom-0">
                 <tr className="font-bold text-white">
-                  <td className="px-4 py-3" colSpan={3}>الإجمالي</td>
-                  <td className="px-4 py-3 text-end text-neutral-400"></td>
+                  <td className="px-4 py-3" colSpan={4}>الإجمالي</td>
                   <td className="px-4 py-3 text-end text-neutral-300">{formatMoney(cost, currency)}</td>
                   <td className="px-4 py-3 text-end">{formatMoney(revenue, currency)}</td>
                   <td className="px-4 py-3 text-end text-emerald-400">{formatMoney(profit, currency)}</td>

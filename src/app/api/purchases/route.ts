@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
-// GET /api/purchases - list all purchases (optionally filtered)
+// GET /api/purchases - list all purchases
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
@@ -28,72 +28,114 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/purchases - record a purchase / restock (increment stock)
+// POST /api/purchases - record a purchase / restock
+// items: [{ productId, quantity, unitPrice }]  — للقطع الموجودة
+// OR create new products: items: [{ name, category, sku, unitPrice, quantity }]  — لقطع جديدة
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const items: Array<{
-      productId: string
+      productId?: string
+      name?: string
+      category?: string
+      sku?: string
       quantity: number
       unitPrice?: number
-      note?: string
+      salePrice?: number
     }> = Array.isArray(body.items) ? body.items : [body]
 
     if (items.length === 0) {
-      return NextResponse.json({ error: 'Aucun article à enregistrer' }, { status: 400 })
+      return NextResponse.json({ error: 'لا توجد قطع' }, { status: 400 })
     }
 
     const result = await db.$transaction(async (tx) => {
       const created: Array<{
         id: string
-        productId: string
         productName: string
         quantity: number
         unitPrice: number
         total: number
+        isNew: boolean
         createdAt: Date
       }> = []
 
       for (const item of items) {
         const qty = Number(item.quantity)
-        if (!item.productId || !qty || qty <= 0) {
-          throw new Error('Données d\'achat invalides')
-        }
+        if (!qty || qty <= 0) throw new Error('الكمية غير صحيحة')
 
-        const product = await tx.product.findUnique({ where: { id: item.productId } })
-        if (!product) throw new Error(`Produit introuvable: ${item.productId}`)
+        if (item.productId) {
+          // قطعة موجودة - حدّث المخزون وسعر الشراء
+          const product = await tx.product.findUnique({ where: { id: item.productId } })
+          if (!product) throw new Error(`المنتج غير موجود: ${item.productId}`)
 
-        const unitPrice = item.unitPrice !== undefined ? Number(item.unitPrice) : product.purchasePrice
-        const total = unitPrice * qty
+          const unitPrice = item.unitPrice !== undefined ? Number(item.unitPrice) : product.purchasePrice
+          const total = unitPrice * qty
 
-        const purchase = await tx.purchase.create({
-          data: {
-            productId: product.id,
+          const purchase = await tx.purchase.create({
+            data: {
+              productId: product.id,
+              quantity: qty,
+              unitPrice,
+              total,
+            },
+          })
+
+          await tx.product.update({
+            where: { id: product.id },
+            data: {
+              quantity: { increment: qty },
+              purchasePrice: unitPrice,
+            },
+          })
+
+          created.push({
+            id: purchase.id,
+            productName: product.name,
             quantity: qty,
             unitPrice,
             total,
-            note: item.note || null,
-          },
-        })
+            isNew: false,
+            createdAt: purchase.createdAt,
+          })
+        } else if (item.name) {
+          // قطعة جديدة - أنشئها ثم سجّل الشراء
+          const unitPrice = Number(item.unitPrice) || 0
+          const salePrice = Number(item.salePrice) || 0
+          const total = unitPrice * qty
 
-        // Update stock + purchase price (last purchase price wins)
-        await tx.product.update({
-          where: { id: product.id },
-          data: {
-            quantity: { increment: qty },
-            purchasePrice: unitPrice,
-          },
-        })
+          const product = await tx.product.create({
+            data: {
+              name: item.name.trim(),
+              category: item.category || 'PIECES',
+              sku: item.sku?.trim() || null,
+              purchasePrice: unitPrice,
+              salePrice,
+              quantity: qty,
+              minQuantity: 0,
+            },
+          })
 
-        created.push({
-          id: purchase.id,
-          productId: product.id,
-          productName: product.name,
-          quantity: qty,
-          unitPrice,
-          total,
-          createdAt: purchase.createdAt,
-        })
+          const purchase = await tx.purchase.create({
+            data: {
+              productId: product.id,
+              quantity: qty,
+              unitPrice,
+              total,
+            },
+          })
+
+          created.push({
+            id: purchase.id,
+            productName: product.name,
+            quantity: qty,
+            unitPrice,
+            total,
+            isNew: true,
+            createdAt: purchase.createdAt,
+          })
+        } else {
+          throw new Error('يجب توفير productId أو name')
+        }
       }
 
       return created
@@ -107,7 +149,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// DELETE /api/purchases - delete a purchase record (and decrement stock)
+// DELETE /api/purchases?id=... - delete a purchase record (adjust stock)
 export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
@@ -116,7 +158,7 @@ export async function DELETE(req: NextRequest) {
 
     await db.$transaction(async (tx) => {
       const purchase = await tx.purchase.findUnique({ where: { id } })
-      if (!purchase) throw new Error('Achat introuvable')
+      if (!purchase) throw new Error('الشراء غير موجود')
 
       const product = await tx.product.findUnique({ where: { id: purchase.productId } })
       if (product && product.quantity >= purchase.quantity) {

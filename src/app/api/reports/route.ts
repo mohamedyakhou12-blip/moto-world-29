@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
 // GET /api/reports?type=dashboard  -> today + month stats, last 7 days chart, top products
-// GET /api/reports?type=daily&date=YYYY-MM-DD  -> specific day breakdown
-// GET /api/reports?type=monthly&year=YYYY&month=1-12  -> specific month breakdown
-// GET /api/reports?type=range&from=YYYY-MM-DD&to=YYYY-MM-DD
+// GET /api/reports?type=daily&date=YYYY-MM-DD
+// GET /api/reports?type=monthly&year=YYYY&month=1-12
 
 function startOfDay(d: Date) {
   const x = new Date(d)
@@ -27,9 +26,8 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const type = searchParams.get('type') || 'dashboard'
-    const tzOffset = searchParams.get('tz') // minutes
+    const tzOffset = searchParams.get('tz')
 
-    // Use a base "today" in the user's timezone if tz is provided
     const now = new Date()
     let today = now
     if (tzOffset !== null) {
@@ -43,21 +41,19 @@ export async function GET(req: NextRequest) {
       const monthStart = startOfMonth(today)
       const monthEnd = endOfMonth(today)
 
-      // We need to compare sale.createdAt in UTC. Convert local day bounds to UTC bounds.
-      // Sale times are stored as UTC. The user's "today" is in their tz.
       const utcDayStart = new Date(dayStart.getTime() - today.getTimezoneOffset() * 60 * 1000)
       const utcDayEnd = new Date(dayEnd.getTime() - today.getTimezoneOffset() * 60 * 1000)
       const utcMonthStart = new Date(monthStart.getTime() - today.getTimezoneOffset() * 60 * 1000)
       const utcMonthEnd = new Date(monthEnd.getTime() - today.getTimezoneOffset() * 60 * 1000)
 
-      const [todaySales, monthSales, lowStockProducts, totalProducts, stockValue] = await Promise.all([
-        db.sale.findMany({
+      const [todayReceipts, monthReceipts, lowStockProducts, totalProducts, stockValue] = await Promise.all([
+        db.receipt.findMany({
           where: { createdAt: { gte: utcDayStart, lte: utcDayEnd } },
-          include: { product: true },
+          include: { items: true },
         }),
-        db.sale.findMany({
+        db.receipt.findMany({
           where: { createdAt: { gte: utcMonthStart, lte: utcMonthEnd } },
-          include: { product: true },
+          include: { items: true },
         }),
         db.product.findMany({
           where: { quantity: { lte: 5 } },
@@ -68,17 +64,18 @@ export async function GET(req: NextRequest) {
         db.product.findMany(),
       ])
 
-      const todayRevenue = todaySales.reduce((s, x) => s + x.total, 0)
-      const todayProfit = todaySales.reduce((s, x) => s + x.profit, 0)
-      const todayCost = todaySales.reduce((s, x) => s + x.unitCost * x.quantity, 0)
-      const todayCount = todaySales.length
+      const todayRevenue = todayReceipts.reduce((s, x) => s + x.total, 0)
+      const todayProfit = todayReceipts.reduce((s, x) => s + x.profit, 0)
+      const todayCost = todayReceipts.reduce((s, x) => s + (x.subtotal - x.profit - (x.discount || 0) < 0 ? 0 : 0), 0) +
+        todayReceipts.reduce((s, r) => s + r.items.reduce((ss, i) => ss + i.unitCost * i.quantity, 0), 0)
+      const todayCount = todayReceipts.length
 
-      const monthRevenue = monthSales.reduce((s, x) => s + x.total, 0)
-      const monthProfit = monthSales.reduce((s, x) => s + x.profit, 0)
-      const monthCost = monthSales.reduce((s, x) => s + x.unitCost * x.quantity, 0)
-      const monthCount = monthSales.length
+      const monthRevenue = monthReceipts.reduce((s, x) => s + x.total, 0)
+      const monthProfit = monthReceipts.reduce((s, x) => s + x.profit, 0)
+      const monthCost = monthReceipts.reduce((s, r) => s + r.items.reduce((ss, i) => ss + i.unitCost * i.quantity, 0), 0)
+      const monthCount = monthReceipts.length
 
-      // last 7 days chart (using user's local day concept)
+      // last 7 days chart
       const last7Days: Array<{ date: string; label: string; revenue: number; profit: number; cost: number }> = []
       for (let i = 6; i >= 0; i--) {
         const d = new Date(today)
@@ -87,44 +84,40 @@ export async function GET(req: NextRequest) {
         const de = endOfDay(d)
         const utcS = new Date(ds.getTime() - today.getTimezoneOffset() * 60 * 1000)
         const utcE = new Date(de.getTime() - today.getTimezoneOffset() * 60 * 1000)
-        const daySales = await db.sale.findMany({
+        const dayReceipts = await db.receipt.findMany({
           where: { createdAt: { gte: utcS, lte: utcE } },
+          include: { items: true },
         })
         const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
         last7Days.push({
           date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
           label: `${dayNames[d.getDay()]} ${d.getDate()}`,
-          revenue: daySales.reduce((s, x) => s + x.total, 0),
-          profit: daySales.reduce((s, x) => s + x.profit, 0),
-          cost: daySales.reduce((s, x) => s + x.unitCost * x.quantity, 0),
+          revenue: dayReceipts.reduce((s, x) => s + x.total, 0),
+          profit: dayReceipts.reduce((s, x) => s + x.profit, 0),
+          cost: dayReceipts.reduce((s, r) => s + r.items.reduce((ss, i) => ss + i.unitCost * i.quantity, 0), 0),
         })
       }
 
-      // top products this month
+      // top products this month (by revenue from receipt items)
       const productMap = new Map<string, { name: string; quantity: number; revenue: number; profit: number }>()
-      for (const s of monthSales) {
-        const key = s.productId
-        if (!productMap.has(key)) {
-          productMap.set(key, { name: s.product.name, quantity: 0, revenue: 0, profit: 0 })
+      for (const r of monthReceipts) {
+        for (const item of r.items) {
+          const key = item.productId
+          if (!productMap.has(key)) {
+            productMap.set(key, { name: item.productName, quantity: 0, revenue: 0, profit: 0 })
+          }
+          const e = productMap.get(key)!
+          e.quantity += item.quantity
+          e.revenue += item.total
+          e.profit += item.profit
         }
-        const e = productMap.get(key)!
-        e.quantity += s.quantity
-        e.revenue += s.total
-        e.profit += s.profit
       }
       const topProducts = Array.from(productMap.values())
         .sort((a, b) => b.revenue - a.revenue)
         .slice(0, 5)
 
-      // stock value
-      const inventoryValue = stockValue.reduce(
-        (s, p) => s + p.purchasePrice * p.quantity,
-        0,
-      )
-      const potentialRevenue = stockValue.reduce(
-        (s, p) => s + p.salePrice * p.quantity,
-        0,
-      )
+      const inventoryValue = stockValue.reduce((s, p) => s + p.purchasePrice * p.quantity, 0)
+      const potentialRevenue = stockValue.reduce((s, p) => s + p.salePrice * p.quantity, 0)
 
       return NextResponse.json({
         today: {
@@ -156,48 +149,46 @@ export async function GET(req: NextRequest) {
       const utcS = new Date(ds.getTime() - d.getTimezoneOffset() * 60 * 1000)
       const utcE = new Date(de.getTime() - d.getTimezoneOffset() * 60 * 1000)
 
-      const sales = await db.sale.findMany({
+      const receipts = await db.receipt.findMany({
         where: { createdAt: { gte: utcS, lte: utcE } },
-        include: { product: true },
+        include: { items: { include: { product: true } } },
         orderBy: { createdAt: 'desc' },
       })
 
       return NextResponse.json({
         date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
-        sales,
-        revenue: sales.reduce((s, x) => s + x.total, 0),
-        cost: sales.reduce((s, x) => s + x.unitCost * x.quantity, 0),
-        profit: sales.reduce((s, x) => s + x.profit, 0),
-        count: sales.length,
+        receipts,
+        revenue: receipts.reduce((s, x) => s + x.total, 0),
+        cost: receipts.reduce((s, r) => s + r.items.reduce((ss, i) => ss + i.unitCost * i.quantity, 0), 0),
+        profit: receipts.reduce((s, x) => s + x.profit, 0),
+        count: receipts.length,
       })
     }
 
     if (type === 'monthly') {
       const year = Number(searchParams.get('year') || today.getFullYear())
-      const month = Number(searchParams.get('month') || today.getMonth() + 1) // 1-12
+      const month = Number(searchParams.get('month') || today.getMonth() + 1)
       const d = new Date(year, month - 1, 1)
       const ms = startOfMonth(d)
       const me = endOfMonth(d)
       const utcS = new Date(ms.getTime() - d.getTimezoneOffset() * 60 * 1000)
       const utcE = new Date(me.getTime() - d.getTimezoneOffset() * 60 * 1000)
 
-      const sales = await db.sale.findMany({
+      const receipts = await db.receipt.findMany({
         where: { createdAt: { gte: utcS, lte: utcE } },
-        include: { product: true },
+        include: { items: true },
         orderBy: { createdAt: 'desc' },
       })
 
-      // group by day
       const byDay = new Map<string, { revenue: number; profit: number; cost: number; count: number }>()
-      for (const s of sales) {
-        // Convert UTC sale time back to local day
-        const localDate = new Date(s.createdAt.getTime() + d.getTimezoneOffset() * 60 * 1000)
+      for (const r of receipts) {
+        const localDate = new Date(r.createdAt.getTime() + d.getTimezoneOffset() * 60 * 1000)
         const key = `${localDate.getDate()}`
         if (!byDay.has(key)) byDay.set(key, { revenue: 0, profit: 0, cost: 0, count: 0 })
         const e = byDay.get(key)!
-        e.revenue += s.total
-        e.profit += s.profit
-        e.cost += s.unitCost * s.quantity
+        e.revenue += r.total
+        e.profit += r.profit
+        e.cost += r.items.reduce((ss, i) => ss + i.unitCost * i.quantity, 0)
         e.count += 1
       }
 
@@ -205,12 +196,12 @@ export async function GET(req: NextRequest) {
         year,
         month,
         monthLabel: new Date(year, month - 1, 1).toLocaleDateString('ar-DZ', { month: 'long', year: 'numeric' }),
-        sales,
+        receipts,
         byDay: Array.from(byDay.entries()).map(([day, v]) => ({ day: Number(day), ...v })).sort((a, b) => a.day - b.day),
-        revenue: sales.reduce((s, x) => s + x.total, 0),
-        cost: sales.reduce((s, x) => s + x.unitCost * x.quantity, 0),
-        profit: sales.reduce((s, x) => s + x.profit, 0),
-        count: sales.length,
+        revenue: receipts.reduce((s, x) => s + x.total, 0),
+        cost: receipts.reduce((s, r) => s + r.items.reduce((ss, i) => ss + i.unitCost * i.quantity, 0), 0),
+        profit: receipts.reduce((s, x) => s + x.profit, 0),
+        count: receipts.length,
       })
     }
 

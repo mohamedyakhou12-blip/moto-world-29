@@ -15,17 +15,35 @@ export interface Product {
   updatedAt: string
 }
 
-export interface SaleWithProduct {
+export interface ReceiptItem {
   id: string
+  receiptId: string
   productId: string
-  product: Product
+  product?: Product
+  productName: string
   quantity: number
   unitPrice: number
   unitCost: number
   total: number
   profit: number
+}
+
+export interface Receipt {
+  id: string
+  number: number
+  customerName: string | null
+  subtotal: number
+  discount: number
+  total: number
+  profit: number
+  itemCount: number
   note: string | null
   createdAt: string
+  items?: ReceiptItem[]
+}
+
+export interface ReceiptWithItems extends Receipt {
+  items: ReceiptItem[]
 }
 
 export interface PurchaseWithProduct {
