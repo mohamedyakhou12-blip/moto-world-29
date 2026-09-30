@@ -1,131 +1,87 @@
 @echo off
-REM ============================================================
-REM  موتو ورلد 29 - بناء ملف .exe
-REM  Moto World 29 - Build .exe file
-REM ============================================================
-REM
-REM  الاستخدام: انقر مرتين على هذا الملف
-REM  Usage: Double-click this file
-REM
-REM  سيقوم بـ:
-REM  1. تثبيت الاعتماديات (إذا لزم)
-REM  2. إعداد قاعدة البيانات
-REM  3. بناء التطبيق
-REM  4. إنشاء ملف .exe في مجلد dist\
-REM
-REM ============================================================
-
-title موتو ورلد 29 - بناء التطبيق
-color 0C
-
+chcp 65001 >nul
+title Moto World 29 - Build
 cd /d "%~dp0"
 
 echo.
-echo  ============================================================
-echo                موتو ورلد 29 - بناء التطبيق
-echo                Moto World 29 - Build Application
-echo  ============================================================
+echo ============================================
+echo   Moto World 29 - Build .exe
+echo ============================================
 echo.
 
-REM ============================================================
-REM 1. تحقق من Node.js
-REM ============================================================
-echo  [1/5] التحقق من Node.js...
+REM Check Node.js
 where node >nul 2>&1
 if errorlevel 1 (
-    echo.
-    echo  ❌ خطأ: Node.js غير مثبت
-    echo  Error: Node.js is not installed
-    echo.
-    echo  حمّله من: https://nodejs.org
-    echo.
+    echo FAIL: Node.js is not installed
+    echo Download from: https://nodejs.org
     pause
     exit /b 1
 )
-echo    ✓ Node.js موجود
+echo OK: Node.js found
 echo.
 
-REM ============================================================
-REM 2. تثبيت الاعتماديات (إذا لزم)
-REM ============================================================
+REM Install deps if needed
 if not exist "node_modules" (
-    echo  [2/5] تثبيت الاعتماديات...
-    echo       قد يستغرق 5-10 دقائق...
-    echo.
+    echo Installing dependencies (5-10 minutes)...
     call npm install
     if errorlevel 1 (
-        echo.
-        echo  ❌ فشل تثبيت الاعتماديات
-        echo.
+        echo FAIL: npm install failed
         pause
         exit /b 1
     )
-    echo.
 ) else (
-    echo  [2/5] الاعتماديات مثبتة مسبقاً ✓
-    echo.
+    echo OK: node_modules exists
 )
+echo.
 
-REM ============================================================
-REM 3. إعداد قاعدة البيانات
-REM ============================================================
-echo  [3/5] إعداد قاعدة البيانات...
+REM Setup .env
 if not exist ".env" (
     copy .env.example .env >nul
+    echo Created .env
 )
+echo.
+
+REM Database
+echo Setting up database...
 call npx prisma db push --accept-data-loss
 if errorlevel 1 (
-    echo.
-    echo  ❌ فشل إعداد قاعدة البيانات
-    echo.
+    echo FAIL: database setup failed
     pause
     exit /b 1
 )
 echo.
 
-REM ============================================================
-REM 4. بناء التطبيق + ملف .exe
-REM ============================================================
-echo  [4/5] بناء التطبيق...
-echo       قد يستغرق 3-8 دقائق...
+REM Build
+echo Building .exe (3-8 minutes)...
+echo DO NOT close this window.
 echo.
 call npm run electron:build
 if errorlevel 1 (
     echo.
-    echo  ❌ فشل البناء
-    echo.
-    echo  تأكد من تثبيت Visual Studio C++ Build Tools
-    echo  Read: BUILD-WINDOWS.md
+    echo FAIL: build failed
     echo.
     pause
     exit /b 1
 )
 echo.
 
-REM ============================================================
-REM 5. النتيجة
-REM ============================================================
-echo  [5/5] التحقق من النتيجة...
+REM Check result
 if exist "dist\Moto World 29 1.0.0.exe" (
     echo.
-    echo  ============================================================
-    echo  ✅  تم بناء التطبيق بنجاح!
-    echo  ============================================================
+    echo ============================================
+    echo   SUCCESS!
+    echo ============================================
     echo.
-    echo  📁 ملف .exe موجود في:
+    echo exe file: %~dp0dist\Moto World 29 1.0.0.exe
     echo.
-    echo     %~dp0dist\Moto World 29 1.0.0.exe
-    echo.
-    echo  🎉 انسخه إلى سطح المكتب وانقر مرتين لتشغيله!
-    echo.
-    echo  هل تريد فتح مجلد dist الآن؟
+    echo Open dist folder?
     choice /c yn /m "(Y/N)"
     if errorlevel 2 goto end
     if errorlevel 1 explorer "dist"
 ) else (
     echo.
-    echo  ⚠  البناء اكتمل لكن لم يتم العثور على ملف .exe
-    echo     تحقق من مجلد dist\
+    echo WARNING: build done but exe not found
+    echo Check dist\ folder
 )
 :end
 echo.
