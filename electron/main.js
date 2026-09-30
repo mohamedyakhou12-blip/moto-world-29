@@ -52,6 +52,9 @@ function getDatabaseUrl() {
   const userData = app.getPath('userData')
   const dbPath = path.join(userData, 'custom.db')
 
+  log('[DB] userData dir: ' + userData)
+  log('[DB] dbPath: ' + dbPath)
+
   if (!fs.existsSync(dbPath)) {
     let templatePath
     if (app.isPackaged) {
@@ -61,23 +64,34 @@ function getDatabaseUrl() {
     }
 
     log('[DB] Looking for template at: ' + templatePath)
+    log('[DB] Template exists: ' + fs.existsSync(templatePath))
 
     if (fs.existsSync(templatePath)) {
       try {
         fs.mkdirSync(path.dirname(dbPath), { recursive: true })
         fs.copyFileSync(templatePath, dbPath)
         log('[DB] تم إنشاء قاعدة البيانات من النموذج: ' + dbPath)
+        log('[DB] Verify copied file exists: ' + fs.existsSync(dbPath))
+        log('[DB] Copied file size: ' + fs.statSync(dbPath).size + ' bytes')
       } catch (e) {
         log('[DB] ERROR فشل نسخ قاعدة البيانات: ' + e.message)
+        log('[DB] ERROR stack: ' + e.stack)
       }
     } else {
       log('[DB] WARNING: قاعدة البيانات النموذجية غير موجودة')
+      log('[DB] Will try to create empty DB at runtime')
     }
   } else {
     log('[DB] قاعدة البيانات موجودة: ' + dbPath)
+    log('[DB] Existing file size: ' + fs.statSync(dbPath).size + ' bytes')
   }
 
-  return `file:${dbPath}`
+  // Convert Windows backslashes to forward slashes for Prisma
+  // Prisma expects: file:C:/Users/.../custom.db (or file:///C:/...)
+  const normalizedPath = dbPath.replace(/\\/g, '/')
+  const dbUrl = `file:${normalizedPath}`
+  log('[DB] DATABASE_URL: ' + dbUrl)
+  return dbUrl
 }
 
 // ------------------------------------------------------------
@@ -174,6 +188,9 @@ function startServer() {
 
       serverProcess.on('exit', (code, signal) => {
         log('[Server] انتهت العملية: code=' + code + ' signal=' + signal)
+        if (code !== 0 && code !== null && !isQuitting) {
+          reject(new Error('الخادم توقف مبكراً (code=' + code + '). راجع السجل: ' + (logFile || '')))
+        }
         serverProcess = null
       })
 
