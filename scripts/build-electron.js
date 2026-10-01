@@ -13,8 +13,8 @@ const root = path.resolve(__dirname, '..')
 const standalone = path.join(root, '.next', 'standalone')
 
 // ------------------------------------------------------------
-// أداة نسخ المجلدات بشكل متكرر (تعمل على كل الأنظمة)
-// Recursive directory copy (cross-platform)
+// أداة نسخ المجلدات بشكل متكرر (تتخطى node_modules في المستوى الأعلى فقط)
+// Recursive directory copy (skips top-level node_modules only)
 // ------------------------------------------------------------
 function copyDir(src, dest) {
   if (!fs.existsSync(src)) {
@@ -28,6 +28,26 @@ function copyDir(src, dest) {
     const destPath = path.join(dest, entry.name)
     if (entry.isDirectory()) {
       copyDir(srcPath, destPath)
+    } else {
+      fs.copyFileSync(srcPath, destPath)
+    }
+  }
+  return true
+}
+
+// نسخ كامل بدون تخطي node_modules (لازم لـ prisma CLI)
+// Full copy without skipping node_modules (needed for prisma CLI)
+function copyDirFull(src, dest) {
+  if (!fs.existsSync(src)) {
+    console.warn(`  ⚠ المصدر غير موجود: ${src}`)
+    return false
+  }
+  fs.mkdirSync(dest, { recursive: true })
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const srcPath = path.join(src, entry.name)
+    const destPath = path.join(dest, entry.name)
+    if (entry.isDirectory()) {
+      copyDirFull(srcPath, destPath)
     } else {
       fs.copyFileSync(srcPath, destPath)
     }
@@ -130,15 +150,15 @@ if (fs.existsSync(prismaEnginesPath) && !fs.existsSync(standalonePrismaEngines))
   console.log('  ✓ تم نسخ @prisma/engines')
 }
 
-// انسخ prisma CLI (لازم لإنشاء الجداول عند أول تشغيل)
+// انسخ prisma CLI (لازم لإنشاء الجداول عند أول تشغيل) - نسخ كامل
 const prismaCliPath = path.join(root, 'node_modules', 'prisma')
 const standalonePrismaCli = path.join(standalone, 'node_modules', 'prisma')
-if (fs.existsSync(prismaCliPath) && !fs.existsSync(standalonePrismaCli)) {
+if (fs.existsSync(prismaCliPath)) {
   fs.mkdirSync(path.dirname(standalonePrismaCli), { recursive: true })
-  copyDir(prismaCliPath, standalonePrismaCli)
-  console.log('  ✓ تم نسخ prisma CLI')
-} else if (fs.existsSync(standalonePrismaCli)) {
-  console.log('  ✓ prisma CLI موجود مسبقاً')
+  copyDirFull(prismaCliPath, standalonePrismaCli)
+  console.log('  ✓ تم نسخ prisma CLI (نسخ كامل)')
+} else {
+  console.warn('  ⚠ prisma CLI غير موجود في node_modules')
 }
 
 // ------------------------------------------------------------

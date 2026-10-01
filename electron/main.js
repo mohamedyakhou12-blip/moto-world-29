@@ -5,7 +5,7 @@
 
 const { app, BrowserWindow, shell, dialog } = require('electron')
 const path = require('path')
-const { spawn, execSync, execFileSync } = require('child_process')
+const { spawn, spawnSync, execSync } = require('child_process')
 const http = require('http')
 const net = require('net')
 const fs = require('fs')
@@ -141,25 +141,39 @@ function ensureDatabaseTables() {
   log('[DB] Using schema: ' + schemaPath)
   log('[DB] Using cwd: ' + prismaCwd)
 
-  // Run prisma db push to create tables
+  // Run prisma db push to create tables using spawnSync (no shell, direct execution)
   try {
     log('[DB] Running prisma db push...')
-    const output = execSync(
-      '"' + process.execPath + '" "' + prismaCliPath + '" db push --accept-data-loss --skip-generate --schema="' + schemaPath + '"',
-      {
-        env: {
-          ...process.env,
-          ELECTRON_RUN_AS_NODE: '1',
-          DATABASE_URL: dbUrl,
-        },
-        cwd: prismaCwd,
-        windowsHide: true,
-        timeout: 60000,
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-      }
-    )
-    log('[DB] prisma db push output: ' + output.trim())
+    log('[DB] execPath: ' + process.execPath)
+    log('[DB] cliPath: ' + prismaCliPath)
+    log('[DB] schemaPath: ' + schemaPath)
+
+    const result = spawnSync(process.execPath, [
+      prismaCliPath,
+      'db', 'push',
+      '--accept-data-loss',
+      '--skip-generate',
+      '--schema=' + schemaPath,
+    ], {
+      env: {
+        ...process.env,
+        ELECTRON_RUN_AS_NODE: '1',
+        DATABASE_URL: dbUrl,
+      },
+      cwd: prismaCwd,
+      windowsHide: true,
+      timeout: 60000,
+      encoding: 'utf8',
+    })
+
+    log('[DB] prisma db push exit code: ' + result.status)
+    if (result.stdout) log('[DB] stdout: ' + result.stdout.trim().slice(-500))
+    if (result.stderr) log('[DB] stderr: ' + result.stderr.trim().slice(-500))
+
+    if (result.status !== 0) {
+      log('[DB] prisma db push FAILED')
+      return { dbUrl, error: 'prisma db push failed (exit ' + result.status + ')' }
+    }
 
     // Verify
     if (fs.existsSync(dbPath)) {
@@ -169,7 +183,7 @@ function ensureDatabaseTables() {
         log('[DB] WARNING: db too small, tables may not exist')
         return { dbUrl, error: 'database too small' }
       }
-      log('[DB] ✓ Database ready with tables')
+      log('[DB] Database ready with tables')
       return { dbUrl, error: null }
     } else {
       log('[DB] ERROR: custom.db was not created')
@@ -177,8 +191,7 @@ function ensureDatabaseTables() {
     }
   } catch (e) {
     log('[DB] ERROR running prisma db push: ' + e.message)
-    if (e.stdout) log('[DB] stdout: ' + e.stdout)
-    if (e.stderr) log('[DB] stderr: ' + e.stderr)
+    log('[DB] Stack: ' + e.stack)
     return { dbUrl, error: e.message }
   }
 }
