@@ -1,14 +1,15 @@
 // ============================================================
-//  موتو ورلد 29 - العملية الرئيسية لإلكترون (مُصلح بالكامل)
-//  Moto World 29 - Electron Main Process (Fully Fixed)
+//  موتو ورلد 29 - Electron Main Process (Bulletproof v3)
+//  Handles ALL failure modes with maximum diagnostics
 // ============================================================
 
 const { app, BrowserWindow, shell, dialog } = require('electron')
 const path = require('path')
-const { spawn, execSync } = require('child_process')
+const { spawn, execSync, exec } = require('child_process')
 const http = require('http')
 const net = require('net')
 const fs = require('fs')
+const os = require('os')
 
 let mainWindow = null
 let serverProcess = null
@@ -16,19 +17,43 @@ let serverPort = 3000
 let isQuitting = false
 
 // ------------------------------------------------------------
-// نظام السجل (يُهيأ بعد app.whenReady)
+// نظام السجل — يعمل بأسرع ما يمكن
 // ------------------------------------------------------------
 let logDir = null
 let logFile = null
 
-function initLogging() {
+function initLoggingEarly() {
   try {
-    logDir = path.join(app.getPath('userData'), 'logs')
+    // Use a temp location before app is ready
+    logDir = path.join(os.tmpdir(), 'moto-world-29-logs')
     fs.mkdirSync(logDir, { recursive: true })
     logFile = path.join(logDir, `app-${new Date().toISOString().slice(0, 10)}.log`)
-    log('=== بدء تسجيل الأخطاء ===')
+    log('=== Logging started (early) ===')
+    log('OS: ' + os.platform() + ' ' + os.arch())
+    log('Node: ' + process.versions.node)
+    log('Electron: ' + process.versions.electron)
+    log('execPath: ' + process.execPath)
+    log('cwd: ' + process.cwd())
   } catch (e) {
     console.error('Failed to init logging:', e)
+  }
+}
+
+function initLoggingFull() {
+  try {
+    const userLogDir = path.join(app.getPath('userData'), 'logs')
+    fs.mkdirSync(userLogDir, { recursive: true })
+    const newLogFile = path.join(userLogDir, `app-${new Date().toISOString().slice(0, 10)}.log`)
+    // Copy old log content to new location
+    if (logFile && fs.existsSync(logFile)) {
+      const oldContent = fs.readFileSync(logFile, 'utf8')
+      fs.appendFileSync(newLogFile, oldContent)
+    }
+    logFile = newLogFile
+    logDir = userLogDir
+    log('=== Logging moved to userData: ' + logFile + ' ===')
+  } catch (e) {
+    log('Failed to move logging: ' + e.message)
   }
 }
 
@@ -45,51 +70,77 @@ function log(msg) {
   }
 }
 
+// Start logging IMMEDIATELY
+initLoggingEarly()
+
 // ------------------------------------------------------------
-// إدارة قاعدة البيانات
+// إدارة قاعدة البيانات — مع fallback
 // ------------------------------------------------------------
 function getDatabaseUrl() {
-  const userData = app.getPath('userData')
-  const dbPath = path.join(userData, 'custom.db')
+  let userData
+  try {
+    userData = app.getPath('userData')
+  } catch (e) {
+    userData = path.join(os.tmpdir(), 'moto-world-29')
+    fs.mkdirSync(userData, { recursive: true })
+  }
 
-  log('[DB] userData dir: ' + userData)
+  const dbPath = path.join(userData, 'custom.db')
+  log('[DB] userData: ' + userData)
   log('[DB] dbPath: ' + dbPath)
 
   if (!fs.existsSync(dbPath)) {
-    let templatePath
+    log('[DB] custom.db does not exist, creating from template...')
+
+    let templatePath = null
+    const candidates = []
+
     if (app.isPackaged) {
-      templatePath = path.join(process.resourcesPath, 'template.db')
+      candidates.push(path.join(process.resourcesPath, 'template.db'))
+      candidates.push(path.join(process.resourcesPath, 'app', 'prisma', 'template.db'))
+      candidates.push(path.join(process.resourcesPath, 'app', '.next', 'standalone', 'prisma', 'template.db'))
     } else {
-      templatePath = path.join(__dirname, '..', 'prisma', 'template.db')
+      candidates.push(path.join(__dirname, '..', 'prisma', 'template.db'))
     }
 
-    log('[DB] Looking for template at: ' + templatePath)
-    log('[DB] Template exists: ' + fs.existsSync(templatePath))
+    log('[DB] Template candidates:')
+    for (const c of candidates) {
+      const exists = fs.existsSync(c)
+      log('  ' + (exists ? 'OK' : 'NO') + ' ' + c)
+      if (exists && !templatePath) templatePath = c
+    }
 
-    if (fs.existsSync(templatePath)) {
+    if (templatePath) {
       try {
         fs.mkdirSync(path.dirname(dbPath), { recursive: true })
         fs.copyFileSync(templatePath, dbPath)
-        log('[DB] تم إنشاء قاعدة البيانات من النموذج: ' + dbPath)
-        log('[DB] Verify copied file exists: ' + fs.existsSync(dbPath))
-        log('[DB] Copied file size: ' + fs.statSync(dbPath).size + ' bytes')
+        const size = fs.statSync(dbPath).size
+        log('[DB] Copied template. Size: ' + size + ' bytes')
+        if (size < 1000) {
+          log('[DB] WARNING: template.db is very small, may be empty')
+        }
       } catch (e) {
-        log('[DB] ERROR فشل نسخ قاعدة البيانات: ' + e.message)
-        log('[DB] ERROR stack: ' + e.stack)
+        log('[DB] ERROR copying template: ' + e.message)
+        log('[DB] Stack: ' + e.stack)
       }
     } else {
-      log('[DB] WARNING: قاعدة البيانات النموذجية غير موجودة')
-      log('[DB] Will try to create empty DB at runtime')
+      log('[DB] ERROR: No template.db found anywhere!')
+      log('[DB] Will create empty file - app may not work correctly')
+      try {
+        fs.mkdirSync(path.dirname(dbPath), { recursive: true })
+        fs.writeFileSync(dbPath, '')
+      } catch (e) {
+        log('[DB] ERROR creating empty DB: ' + e.message)
+      }
     }
   } else {
-    log('[DB] قاعدة البيانات موجودة: ' + dbPath)
-    log('[DB] Existing file size: ' + fs.statSync(dbPath).size + ' bytes')
+    const size = fs.statSync(dbPath).size
+    log('[DB] custom.db exists. Size: ' + size + ' bytes')
   }
 
-  // Convert Windows backslashes to forward slashes for Prisma
-  // Prisma expects: file:C:/Users/.../custom.db (or file:///C:/...)
+  // CRITICAL: Convert backslashes to forward slashes for Prisma on Windows
   const normalizedPath = dbPath.replace(/\\/g, '/')
-  const dbUrl = `file:${normalizedPath}`
+  const dbUrl = 'file:' + normalizedPath
   log('[DB] DATABASE_URL: ' + dbUrl)
   return dbUrl
 }
@@ -104,10 +155,7 @@ function findAvailablePort(startPort) {
       const tester = net.createServer()
       tester.once('error', () => {
         port++
-        if (port > 3099) {
-          resolve(3100)
-          return
-        }
+        if (port > 3099) { resolve(3100); return }
         tryPort()
       })
       tester.once('listening', () => {
@@ -128,29 +176,43 @@ function startServer() {
     try {
       const dbUrl = getDatabaseUrl()
       serverPort = await findAvailablePort(3000)
-      log('[Server] المنفذ المختار: ' + serverPort)
+      log('[Server] Port: ' + serverPort)
 
-      // مسار server.js
-      let serverPath
+      // Find server.js - try multiple locations
+      let serverPath = null
+      const serverCandidates = []
+
       if (app.isPackaged) {
-        serverPath = path.join(process.resourcesPath, 'app', '.next', 'standalone', 'server.js')
+        serverCandidates.push(path.join(process.resourcesPath, 'app', '.next', 'standalone', 'server.js'))
+        serverCandidates.push(path.join(process.resourcesPath, '.next', 'standalone', 'server.js'))
       } else {
-        serverPath = path.join(__dirname, '..', '.next', 'standalone', 'server.js')
+        serverCandidates.push(path.join(__dirname, '..', '.next', 'standalone', 'server.js'))
       }
 
-      log('[Server] مسار الخادم: ' + serverPath)
+      log('[Server] Looking for server.js:')
+      for (const c of serverCandidates) {
+        const exists = fs.existsSync(c)
+        log('  ' + (exists ? 'OK' : 'NO') + ' ' + c)
+        if (exists && !serverPath) serverPath = c
+      }
 
-      if (!fs.existsSync(serverPath)) {
-        reject(new Error('لم يتم العثور على server.js:\n' + serverPath + '\n\nشغّل: npm run build'))
+      if (!serverPath) {
+        reject(new Error('server.js not found in any location'))
         return
       }
 
-      // مجلد عمل الخادم
       const serverCwd = path.dirname(serverPath)
-      log('[Server] مجلد العمل: ' + serverCwd)
+      log('[Server] cwd: ' + serverCwd)
 
-      // ⚠️ CRITICAL: ELECTRON_RUN_AS_NODE=1
-      // يجعل Electron يعمل كـ Node.js خالص بدون واجهة
+      // List what's in cwd for debugging
+      try {
+        const files = fs.readdirSync(serverCwd)
+        log('[Server] cwd contents: ' + files.slice(0, 20).join(', '))
+      } catch (e) {
+        log('[Server] Could not list cwd: ' + e.message)
+      }
+
+      // CRITICAL: ELECTRON_RUN_AS_NODE=1
       const env = {
         ...process.env,
         ELECTRON_RUN_AS_NODE: '1',
@@ -161,8 +223,7 @@ function startServer() {
         NEXT_TELEMETRY_DISABLED: '1',
       }
 
-      log('[Server] تشغيل الخادم...')
-      log('[Server] execPath: ' + process.execPath)
+      log('[Server] Spawning: ' + process.execPath + ' ' + serverPath)
 
       serverProcess = spawn(process.execPath, [serverPath], {
         env: env,
@@ -171,68 +232,68 @@ function startServer() {
         stdio: ['pipe', 'pipe', 'pipe'],
       })
 
+      log('[Server] PID: ' + serverProcess.pid)
+
       serverProcess.stdout.on('data', (data) => {
         const text = data.toString().trim()
-        if (text) log('[server:out] ' + text)
+        if (text) {
+          log('[server:out] ' + text)
+        }
       })
 
       serverProcess.stderr.on('data', (data) => {
         const text = data.toString().trim()
-        if (text) log('[server:err] ' + text)
+        if (text) {
+          log('[server:err] ' + text)
+        }
       })
 
       serverProcess.on('error', (err) => {
-        log('[Server] خطأ في التشغيل: ' + err.message)
+        log('[Server] spawn error: ' + err.message)
         if (!isQuitting) reject(err)
       })
 
       serverProcess.on('exit', (code, signal) => {
-        log('[Server] انتهت العملية: code=' + code + ' signal=' + signal)
+        log('[Server] exit: code=' + code + ' signal=' + signal)
         if (code !== 0 && code !== null && !isQuitting) {
-          reject(new Error('الخادم توقف مبكراً (code=' + code + '). راجع السجل: ' + (logFile || '')))
+          reject(new Error('Server exited early (code=' + code + '). Check log: ' + logFile))
         }
         serverProcess = null
       })
 
-      // انتظر حتى يصبح الخادم جاهزاً
+      // Wait for server to be ready
       let attempts = 0
-      const maxAttempts = 60 // 30 ثانية
+      const maxAttempts = 60
 
       const checkServer = () => {
-        const req = http.get(`http://127.0.0.1:${serverPort}/`, (res) => {
-          log('[Server] استجابة HTTP: ' + res.statusCode)
+        const req = http.get('http://127.0.0.1:' + serverPort + '/', (res) => {
+          log('[Server] HTTP response: ' + res.statusCode)
           if (res.statusCode < 500) {
-            log('[Server] الخادم جاهز ✓')
             res.destroy()
+            log('[Server] Ready!')
             resolve()
           } else {
             res.destroy()
             retry()
           }
         })
-
-        req.on('error', (e) => {
-          retry()
-        })
-        req.setTimeout(2000, () => {
-          req.destroy()
-          retry()
-        })
+        req.on('error', () => retry())
+        req.setTimeout(2000, () => { req.destroy(); retry() })
       }
 
       const retry = () => {
         attempts++
         if (attempts >= maxAttempts) {
-          reject(new Error('الخادم لم يبدأ خلال 30 ثانية\nراجع السجل: ' + (logFile || 'logs/')))
+          const logContent = logFile && fs.existsSync(logFile) ? fs.readFileSync(logFile, 'utf8') : 'no log'
+          reject(new Error('Server not ready after 30s.\n\nLog:\n' + logContent.slice(-2000)))
         } else {
           setTimeout(checkServer, 500)
         }
       }
 
-      // ابدأ الفحص بعد ثانية
       setTimeout(checkServer, 1000)
     } catch (err) {
-      log('[Server] استثناء: ' + err.message + '\n' + err.stack)
+      log('[Server] Exception: ' + err.message + '\n' + err.stack)
       reject(err)
     }
   })
@@ -242,49 +303,35 @@ function startServer() {
 // إيقاف الخادم
 // ------------------------------------------------------------
 function killServer() {
-  if (!serverProcess) {
-    log('[Server] لا توجد عملية لإيقافها')
-    return
-  }
-
-  log('[Server] إيقاف الخادم... PID: ' + serverProcess.pid)
+  if (!serverProcess) return
+  log('[Server] Killing PID: ' + serverProcess.pid)
   try {
     if (process.platform === 'win32') {
-      execSync(`taskkill /pid ${serverProcess.pid} /T /F`, { stdio: 'ignore' })
+      execSync('taskkill /pid ' + serverProcess.pid + ' /T /F', { stdio: 'ignore' })
     } else {
       serverProcess.kill('SIGTERM')
-      try { serverProcess.kill('SIGKILL') } catch (e) { /* ignore */ }
+      try { serverProcess.kill('SIGKILL') } catch (e) {}
     }
   } catch (e) {
-    log('[Server] خطأ أثناء الإيقاف: ' + e.message)
+    log('[Server] Kill error: ' + e.message)
   }
   serverProcess = null
 }
 
 // ------------------------------------------------------------
-// إنشاء النافذة الرئيسية
+// إنشاء النافذة
 // ------------------------------------------------------------
 function createWindow() {
-  // مسار الأيقونة (مع fallback)
   let iconPath = null
-  const possibleIcons = [
-    app.isPackaged
-      ? path.join(process.resourcesPath, 'app', '.next', 'standalone', 'public', 'moto-world-logo.jpg')
-      : path.join(__dirname, '..', 'public', 'moto-world-logo.jpg'),
-    app.isPackaged
-      ? path.join(process.resourcesPath, 'app', 'public', 'moto-world-logo.jpg')
-      : null,
-  ].filter(Boolean)
+  const iconCandidates = app.isPackaged
+    ? [
+        path.join(process.resourcesPath, 'app', '.next', 'standalone', 'public', 'moto-world-logo.jpg'),
+        path.join(process.resourcesPath, 'app', 'public', 'moto-world-logo.jpg'),
+      ]
+    : [path.join(__dirname, '..', 'public', 'moto-world-logo.jpg')]
 
-  for (const p of possibleIcons) {
-    if (fs.existsSync(p)) {
-      iconPath = p
-      log('[Window] أيقونة موجودة: ' + p)
-      break
-    }
-  }
-  if (!iconPath) {
-    log('[Window] لم يتم العثور على الأيقونة، سيستخدم Electron أيقونة افتراضية')
+  for (const p of iconCandidates) {
+    if (fs.existsSync(p)) { iconPath = p; log('[Window] Icon: ' + p); break }
   }
 
   mainWindow = new BrowserWindow({
@@ -293,7 +340,7 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 650,
     backgroundColor: '#0a0a0a',
-    title: 'موتو ورلد 29',
+    title: 'Moto World 29',
     ...(iconPath ? { icon: iconPath } : {}),
     autoHideMenuBar: true,
     show: true,
@@ -304,52 +351,51 @@ function createWindow() {
     },
   })
 
-  const url = `http://127.0.0.1:${serverPort}`
-  log('[Window] تحميل URL: ' + url)
+  const url = 'http://127.0.0.1:' + serverPort
+  log('[Window] Loading: ' + url)
   mainWindow.loadURL(url)
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http')) {
-      shell.openExternal(url)
-      return { action: 'deny' }
-    }
+    if (url.startsWith('http')) { shell.openExternal(url); return { action: 'deny' } }
     return { action: 'allow' }
   })
 
-  mainWindow.on('closed', () => {
-    mainWindow = null
-  })
-
-  log('[Window] تم إنشاء النافذة ✓')
+  mainWindow.on('closed', () => { mainWindow = null })
+  log('[Window] Created')
 }
 
 // ------------------------------------------------------------
-// دورة حياة التطبيق
+// دورة الحياة
 // ------------------------------------------------------------
 app.whenReady().then(async () => {
-  initLogging()
-  log('=== موتو ورلد 29 - بدء التشغيل ===')
-  log('App packaged: ' + app.isPackaged)
-  log('process.execPath: ' + process.execPath)
-  log('process.resourcesPath: ' + (process.resourcesPath || 'N/A'))
+  initLoggingFull()
+  log('=== Moto World 29 starting ===')
+  log('Packaged: ' + app.isPackaged)
+  log('resourcesPath: ' + (process.resourcesPath || 'N/A'))
   log('userData: ' + app.getPath('userData'))
-  log('Platform: ' + process.platform)
-  log('Arch: ' + process.arch)
-  log('Electron version: ' + process.versions.electron)
-  log('Node version: ' + process.versions.node)
 
   try {
     await startServer()
-    log('[App] الخادم يعمل، إنشاء النافذة...')
+    log('[App] Server running, creating window...')
     createWindow()
-    log('[App] التطبيق يعمل بنجاح ✓')
+    log('[App] App running')
   } catch (err) {
-    log('[App] فشل التشغيل: ' + err.message)
+    log('[App] FAILED: ' + err.message)
     log('[App] Stack: ' + (err.stack || 'no stack'))
-    dialog.showErrorBox(
-      'خطأ في تشغيل موتو ورلد 29',
-      'تعذر تشغيل التطبيق:\n\n' + err.message + '\n\nراجع ملف السجل:\n' + (logFile || app.getPath('userData'))
-    )
+
+    // Show error WITH the log content
+    let logContent = ''
+    try {
+      if (logFile && fs.existsSync(logFile)) {
+        logContent = fs.readFileSync(logFile, 'utf8')
+      }
+    } catch (e) {}
+
+    const errorMessage = err.message +
+      '\n\n=== LOG (last 2000 chars) ===\n' +
+      (logContent.slice(-2000) || 'no log')
+
+    dialog.showErrorBox('Moto World 29 - Error', errorMessage)
     app.quit()
   }
 })
@@ -362,20 +408,17 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
-  log('=== before-quit ===')
   isQuitting = true
   killServer()
 })
 
-process.on('exit', () => {
-  killServer()
-})
+process.on('exit', () => { killServer() })
 
 process.on('uncaughtException', (err) => {
   log('[FATAL] uncaughtException: ' + err.message + '\n' + err.stack)
   try {
-    dialog.showErrorBox('خطأ قاتل', err.message + '\n\nراجع: ' + (logFile || ''))
-  } catch (e) { /* ignore */ }
+    dialog.showErrorBox('Fatal Error', err.message + '\n\nLog: ' + (logFile || ''))
+  } catch (e) {}
 })
 
 process.on('unhandledRejection', (reason) => {
