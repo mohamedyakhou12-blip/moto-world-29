@@ -122,32 +122,43 @@ console.log('  ✓ تم')
 // ------------------------------------------------------------
 console.log('📁 نسخ عميل Prisma...')
 
-// انسخ .prisma/client (العميل المُولّد + محرك الاستعلام)
+// انسخ .prisma/client (العميل المُولّد + محرك الاستعلام) - FORCE OVERWRITE
 const prismaGeneratedPath = path.join(root, 'node_modules', '.prisma')
 const standalonePrismaGenPath = path.join(standalone, 'node_modules', '.prisma')
 if (fs.existsSync(prismaGeneratedPath)) {
-  copyDir(prismaGeneratedPath, standalonePrismaGenPath)
-  console.log('  ✓ تم نسخ .prisma/client')
+  // Remove existing first (might be a stub)
+  if (fs.existsSync(standalonePrismaGenPath)) {
+    fs.rmSync(standalonePrismaGenPath, { recursive: true, force: true })
+  }
+  fs.mkdirSync(path.dirname(standalonePrismaGenPath), { recursive: true })
+  copyDirFull(prismaGeneratedPath, standalonePrismaGenPath)
+  console.log('  ✓ تم نسخ .prisma/client (force overwrite)')
 } else {
   console.warn('  ⚠ .prisma غير موجود — شغّل: npm run db:generate')
 }
 
-// انسخ @prisma/client إذا لم يكن موجوداً في standalone
+// انسخ @prisma/client - FORCE OVERWRITE (Next.js standalone creates a stub)
 const prismaClientPkg = path.join(root, 'node_modules', '@prisma', 'client')
 const standalonePrismaClient = path.join(standalone, 'node_modules', '@prisma', 'client')
-if (fs.existsSync(prismaClientPkg) && !fs.existsSync(standalonePrismaClient)) {
+if (fs.existsSync(prismaClientPkg)) {
+  if (fs.existsSync(standalonePrismaClient)) {
+    fs.rmSync(standalonePrismaClient, { recursive: true, force: true })
+  }
   fs.mkdirSync(path.dirname(standalonePrismaClient), { recursive: true })
-  copyDir(prismaClientPkg, standalonePrismaClient)
-  console.log('  ✓ تم نسخ @prisma/client')
+  copyDirFull(prismaClientPkg, standalonePrismaClient)
+  console.log('  ✓ تم نسخ @prisma/client (force overwrite)')
 }
 
-// انسخ @prisma/engines (محرك الاستعلام)
+// انسخ @prisma/engines - FORCE OVERWRITE
 const prismaEnginesPath = path.join(root, 'node_modules', '@prisma', 'engines')
 const standalonePrismaEngines = path.join(standalone, 'node_modules', '@prisma', 'engines')
-if (fs.existsSync(prismaEnginesPath) && !fs.existsSync(standalonePrismaEngines)) {
+if (fs.existsSync(prismaEnginesPath)) {
+  if (fs.existsSync(standalonePrismaEngines)) {
+    fs.rmSync(standalonePrismaEngines, { recursive: true, force: true })
+  }
   fs.mkdirSync(path.dirname(standalonePrismaEngines), { recursive: true })
-  copyDir(prismaEnginesPath, standalonePrismaEngines)
-  console.log('  ✓ تم نسخ @prisma/engines')
+  copyDirFull(prismaEnginesPath, standalonePrismaEngines)
+  console.log('  ✓ تم نسخ @prisma/engines (force overwrite)')
 }
 
 // انسخ prisma CLI (لازم لإنشاء الجداول عند أول تشغيل) - نسخ كامل
