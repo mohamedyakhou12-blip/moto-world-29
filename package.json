@@ -32,6 +32,8 @@
     "files": [
       "electron/**/*",
       ".next/standalone/**/*",
+      "node_modules/.prisma/**/*",
+      "node_modules/@prisma/**/*",
       "package.json"
     ],
     "extraResources": [
