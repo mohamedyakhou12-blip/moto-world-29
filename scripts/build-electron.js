@@ -141,11 +141,16 @@ if (fs.existsSync(templateDbPath)) {
   fs.unlinkSync(templateDbPath)
 }
 
+// Convert backslashes to forward slashes for Prisma (Windows fix)
+const normalizedTemplatePath = templateDbPath.replace(/\\/g, '/')
+console.log('  Template path: ' + templateDbPath)
+console.log('  Normalized for Prisma: ' + normalizedTemplatePath)
+
 try {
   execSync('npx prisma db push --accept-data-loss --skip-generate', {
     env: {
       ...process.env,
-      DATABASE_URL: `file:${templateDbPath}`,
+      DATABASE_URL: 'file:' + normalizedTemplatePath,
     },
     cwd: root,
     stdio: 'pipe',
@@ -154,6 +159,17 @@ try {
 } catch (e) {
   console.error('  ❌ فشل إنشاء قاعدة البيانات النموذجية:', e.message)
   process.exit(1)
+}
+
+// Verify template.db has tables (not empty)
+const stats = fs.statSync(templateDbPath)
+console.log('  template.db size: ' + stats.size + ' bytes')
+if (stats.size < 10000) {
+  console.error('  ❌ template.db is too small (<' + 10000 + ' bytes) - tables may not be created!')
+  console.error('  This means the database is empty and the app will not work.')
+  process.exit(1)
+} else {
+  console.log('  ✓ template.db size OK (tables likely created)')
 }
 
 console.log('\n====================================')
