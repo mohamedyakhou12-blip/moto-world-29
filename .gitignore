@@ -82,4 +82,4 @@ server.log
 /out-electron/
 
 # Template DB (generated during build, not committed)
-/prisma/template.db
+/prisma/template.dbtool-results/
