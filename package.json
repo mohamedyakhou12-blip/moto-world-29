@@ -15,8 +15,8 @@
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
     "postinstall": "prisma generate",
-    "electron:dev": "next build && node scripts/build-electron.js && electron electron/main.js",
-    "electron:build": "next build && node scripts/build-electron.js && electron-builder --win"
+    "electron:dev": "next build --webpack && node scripts/build-electron.js && electron electron/main.js",
+    "electron:build": "next build --webpack && node scripts/build-electron.js && electron-builder --win"
   },
   "build": {
     "appId": "com.motoworld29.app",
