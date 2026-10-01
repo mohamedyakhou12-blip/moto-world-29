@@ -98,38 +98,39 @@ function ensureDatabaseTables() {
   let schemaPath = null
   let prismaCwd = null
 
-  const candidates = []
+  const cliCandidates = []
+  const schemaCandidates = []
 
   if (app.isPackaged) {
-    candidates.push({
-      cli: path.join(process.resourcesPath, 'app', '.next', 'standalone', 'node_modules', 'prisma', 'build', 'index.js'),
-      schema: path.join(process.resourcesPath, 'app', '.next', 'standalone', 'prisma', 'schema.prisma'),
-      cwd: path.join(process.resourcesPath, 'app', '.next', 'standalone'),
-    })
-    candidates.push({
-      cli: path.join(process.resourcesPath, 'app', 'node_modules', 'prisma', 'build', 'index.js'),
-      schema: path.join(process.resourcesPath, 'app', 'prisma', 'schema.prisma'),
-      cwd: path.join(process.resourcesPath, 'app'),
-    })
+    // CLI locations (search independently from schema)
+    cliCandidates.push(path.join(process.resourcesPath, 'app', '.next', 'standalone', 'node_modules', 'prisma', 'build', 'index.js'))
+    cliCandidates.push(path.join(process.resourcesPath, 'app', 'node_modules', 'prisma', 'build', 'index.js'))
+    // Schema locations
+    schemaCandidates.push(path.join(process.resourcesPath, 'app', '.next', 'standalone', 'prisma', 'schema.prisma'))
+    schemaCandidates.push(path.join(process.resourcesPath, 'app', 'prisma', 'schema.prisma'))
   } else {
-    candidates.push({
-      cli: path.join(__dirname, '..', 'node_modules', 'prisma', 'build', 'index.js'),
-      schema: path.join(__dirname, '..', 'prisma', 'schema.prisma'),
-      cwd: path.join(__dirname, '..'),
-    })
+    cliCandidates.push(path.join(__dirname, '..', 'node_modules', 'prisma', 'build', 'index.js'))
+    schemaCandidates.push(path.join(__dirname, '..', 'prisma', 'schema.prisma'))
   }
 
   log('[DB] Looking for prisma CLI:')
-  for (const c of candidates) {
-    const cliExists = fs.existsSync(c.cli)
-    const schemaExists = fs.existsSync(c.schema)
-    log('  CLI ' + (cliExists ? 'OK' : 'NO') + ' ' + c.cli)
-    log('  Schema ' + (schemaExists ? 'OK' : 'NO') + ' ' + c.schema)
-    if (cliExists && schemaExists && !prismaCliPath) {
-      prismaCliPath = c.cli
-      schemaPath = c.schema
-      prismaCwd = c.cwd
-    }
+  for (const c of cliCandidates) {
+    const exists = fs.existsSync(c)
+    log('  ' + (exists ? 'OK' : 'NO') + ' ' + c)
+    if (exists && !prismaCliPath) prismaCliPath = c
+  }
+
+  log('[DB] Looking for schema.prisma:')
+  for (const c of schemaCandidates) {
+    const exists = fs.existsSync(c)
+    log('  ' + (exists ? 'OK' : 'NO') + ' ' + c)
+    if (exists && !schemaPath) schemaPath = c
+  }
+
+  // cwd = parent of node_modules containing prisma CLI
+  if (prismaCliPath) {
+    prismaCwd = path.dirname(path.dirname(path.dirname(path.dirname(prismaCliPath))))
+    log('[DB] Using cwd: ' + prismaCwd)
   }
 
   if (!prismaCliPath) {
