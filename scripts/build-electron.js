@@ -130,6 +130,17 @@ if (fs.existsSync(prismaEnginesPath) && !fs.existsSync(standalonePrismaEngines))
   console.log('  ✓ تم نسخ @prisma/engines')
 }
 
+// انسخ prisma CLI (لازم لإنشاء الجداول عند أول تشغيل)
+const prismaCliPath = path.join(root, 'node_modules', 'prisma')
+const standalonePrismaCli = path.join(standalone, 'node_modules', 'prisma')
+if (fs.existsSync(prismaCliPath) && !fs.existsSync(standalonePrismaCli)) {
+  fs.mkdirSync(path.dirname(standalonePrismaCli), { recursive: true })
+  copyDir(prismaCliPath, standalonePrismaCli)
+  console.log('  ✓ تم نسخ prisma CLI')
+} else if (fs.existsSync(standalonePrismaCli)) {
+  console.log('  ✓ prisma CLI موجود مسبقاً')
+}
+
 // ------------------------------------------------------------
 // 8. أنشئ قاعدة بيانات نموذجية فارغة (template.db)
 // ------------------------------------------------------------

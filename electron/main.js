@@ -1,11 +1,11 @@
 // ============================================================
-//  موتو ورلد 29 - Electron Main Process (Bulletproof v3)
-//  Handles ALL failure modes with maximum diagnostics
+//  موتو ورلد 29 - Electron Main Process (Self-Healing v4)
+//  Creates database tables automatically at startup
 // ============================================================
 
 const { app, BrowserWindow, shell, dialog } = require('electron')
 const path = require('path')
-const { spawn, execSync, exec } = require('child_process')
+const { spawn, execSync, execFileSync } = require('child_process')
 const http = require('http')
 const net = require('net')
 const fs = require('fs')
@@ -17,14 +17,13 @@ let serverPort = 3000
 let isQuitting = false
 
 // ------------------------------------------------------------
-// نظام السجل — يعمل بأسرع ما يمكن
+// نظام السجل
 // ------------------------------------------------------------
 let logDir = null
 let logFile = null
 
 function initLoggingEarly() {
   try {
-    // Use a temp location before app is ready
     logDir = path.join(os.tmpdir(), 'moto-world-29-logs')
     fs.mkdirSync(logDir, { recursive: true })
     logFile = path.join(logDir, `app-${new Date().toISOString().slice(0, 10)}.log`)
@@ -33,7 +32,6 @@ function initLoggingEarly() {
     log('Node: ' + process.versions.node)
     log('Electron: ' + process.versions.electron)
     log('execPath: ' + process.execPath)
-    log('cwd: ' + process.cwd())
   } catch (e) {
     console.error('Failed to init logging:', e)
   }
@@ -44,7 +42,6 @@ function initLoggingFull() {
     const userLogDir = path.join(app.getPath('userData'), 'logs')
     fs.mkdirSync(userLogDir, { recursive: true })
     const newLogFile = path.join(userLogDir, `app-${new Date().toISOString().slice(0, 10)}.log`)
-    // Copy old log content to new location
     if (logFile && fs.existsSync(logFile)) {
       const oldContent = fs.readFileSync(logFile, 'utf8')
       fs.appendFileSync(newLogFile, oldContent)
@@ -62,19 +59,14 @@ function log(msg) {
   const line = `[${timestamp}] ${msg}`
   console.log(line)
   try {
-    if (logFile) {
-      fs.appendFileSync(logFile, line + '\n')
-    }
-  } catch (e) {
-    // ignore
-  }
+    if (logFile) fs.appendFileSync(logFile, line + '\n')
+  } catch (e) {}
 }
 
-// Start logging IMMEDIATELY
 initLoggingEarly()
 
 // ------------------------------------------------------------
-// إدارة قاعدة البيانات — مع fallback
+// قاعدة البيانات - إنشاء الجداول تلقائياً
 // ------------------------------------------------------------
 function getDatabaseUrl() {
   let userData
@@ -89,60 +81,106 @@ function getDatabaseUrl() {
   log('[DB] userData: ' + userData)
   log('[DB] dbPath: ' + dbPath)
 
-  if (!fs.existsSync(dbPath)) {
-    log('[DB] custom.db does not exist, creating from template...')
-
-    let templatePath = null
-    const candidates = []
-
-    if (app.isPackaged) {
-      candidates.push(path.join(process.resourcesPath, 'template.db'))
-      candidates.push(path.join(process.resourcesPath, 'app', 'prisma', 'template.db'))
-      candidates.push(path.join(process.resourcesPath, 'app', '.next', 'standalone', 'prisma', 'template.db'))
-    } else {
-      candidates.push(path.join(__dirname, '..', 'prisma', 'template.db'))
-    }
-
-    log('[DB] Template candidates:')
-    for (const c of candidates) {
-      const exists = fs.existsSync(c)
-      log('  ' + (exists ? 'OK' : 'NO') + ' ' + c)
-      if (exists && !templatePath) templatePath = c
-    }
-
-    if (templatePath) {
-      try {
-        fs.mkdirSync(path.dirname(dbPath), { recursive: true })
-        fs.copyFileSync(templatePath, dbPath)
-        const size = fs.statSync(dbPath).size
-        log('[DB] Copied template. Size: ' + size + ' bytes')
-        if (size < 1000) {
-          log('[DB] WARNING: template.db is very small, may be empty')
-        }
-      } catch (e) {
-        log('[DB] ERROR copying template: ' + e.message)
-        log('[DB] Stack: ' + e.stack)
-      }
-    } else {
-      log('[DB] ERROR: No template.db found anywhere!')
-      log('[DB] Will create empty file - app may not work correctly')
-      try {
-        fs.mkdirSync(path.dirname(dbPath), { recursive: true })
-        fs.writeFileSync(dbPath, '')
-      } catch (e) {
-        log('[DB] ERROR creating empty DB: ' + e.message)
-      }
-    }
-  } else {
-    const size = fs.statSync(dbPath).size
-    log('[DB] custom.db exists. Size: ' + size + ' bytes')
-  }
-
-  // CRITICAL: Convert backslashes to forward slashes for Prisma on Windows
   const normalizedPath = dbPath.replace(/\\/g, '/')
   const dbUrl = 'file:' + normalizedPath
   log('[DB] DATABASE_URL: ' + dbUrl)
-  return dbUrl
+  return { dbUrl, dbPath, normalizedPath }
+}
+
+// ------------------------------------------------------------
+// إنشاء الجداول باستخدام prisma db push
+// ------------------------------------------------------------
+function ensureDatabaseTables() {
+  const { dbUrl, dbPath } = getDatabaseUrl()
+
+  // Find prisma CLI in standalone
+  let prismaCliPath = null
+  let schemaPath = null
+  let prismaCwd = null
+
+  const candidates = []
+
+  if (app.isPackaged) {
+    candidates.push({
+      cli: path.join(process.resourcesPath, 'app', '.next', 'standalone', 'node_modules', 'prisma', 'build', 'index.js'),
+      schema: path.join(process.resourcesPath, 'app', '.next', 'standalone', 'prisma', 'schema.prisma'),
+      cwd: path.join(process.resourcesPath, 'app', '.next', 'standalone'),
+    })
+    candidates.push({
+      cli: path.join(process.resourcesPath, 'app', 'node_modules', 'prisma', 'build', 'index.js'),
+      schema: path.join(process.resourcesPath, 'app', 'prisma', 'schema.prisma'),
+      cwd: path.join(process.resourcesPath, 'app'),
+    })
+  } else {
+    candidates.push({
+      cli: path.join(__dirname, '..', 'node_modules', 'prisma', 'build', 'index.js'),
+      schema: path.join(__dirname, '..', 'prisma', 'schema.prisma'),
+      cwd: path.join(__dirname, '..'),
+    })
+  }
+
+  log('[DB] Looking for prisma CLI:')
+  for (const c of candidates) {
+    const cliExists = fs.existsSync(c.cli)
+    const schemaExists = fs.existsSync(c.schema)
+    log('  CLI ' + (cliExists ? 'OK' : 'NO') + ' ' + c.cli)
+    log('  Schema ' + (schemaExists ? 'OK' : 'NO') + ' ' + c.schema)
+    if (cliExists && schemaExists && !prismaCliPath) {
+      prismaCliPath = c.cli
+      schemaPath = c.schema
+      prismaCwd = c.cwd
+    }
+  }
+
+  if (!prismaCliPath) {
+    log('[DB] ERROR: prisma CLI not found!')
+    return { dbUrl, error: 'prisma CLI not found' }
+  }
+
+  log('[DB] Using prisma CLI: ' + prismaCliPath)
+  log('[DB] Using schema: ' + schemaPath)
+  log('[DB] Using cwd: ' + prismaCwd)
+
+  // Run prisma db push to create tables
+  try {
+    log('[DB] Running prisma db push...')
+    const output = execSync(
+      '"' + process.execPath + '" "' + prismaCliPath + '" db push --accept-data-loss --skip-generate --schema="' + schemaPath + '"',
+      {
+        env: {
+          ...process.env,
+          ELECTRON_RUN_AS_NODE: '1',
+          DATABASE_URL: dbUrl,
+        },
+        cwd: prismaCwd,
+        windowsHide: true,
+        timeout: 60000,
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }
+    )
+    log('[DB] prisma db push output: ' + output.trim())
+
+    // Verify
+    if (fs.existsSync(dbPath)) {
+      const size = fs.statSync(dbPath).size
+      log('[DB] custom.db created. Size: ' + size + ' bytes')
+      if (size < 10000) {
+        log('[DB] WARNING: db too small, tables may not exist')
+        return { dbUrl, error: 'database too small' }
+      }
+      log('[DB] ✓ Database ready with tables')
+      return { dbUrl, error: null }
+    } else {
+      log('[DB] ERROR: custom.db was not created')
+      return { dbUrl, error: 'custom.db not created' }
+    }
+  } catch (e) {
+    log('[DB] ERROR running prisma db push: ' + e.message)
+    if (e.stdout) log('[DB] stdout: ' + e.stdout)
+    if (e.stderr) log('[DB] stderr: ' + e.stderr)
+    return { dbUrl, error: e.message }
+  }
 }
 
 // ------------------------------------------------------------
@@ -153,15 +191,8 @@ function findAvailablePort(startPort) {
     let port = startPort
     const tryPort = () => {
       const tester = net.createServer()
-      tester.once('error', () => {
-        port++
-        if (port > 3099) { resolve(3100); return }
-        tryPort()
-      })
-      tester.once('listening', () => {
-        tester.once('close', () => resolve(port))
-        tester.close()
-      })
+      tester.once('error', () => { port++; if (port > 3099) { resolve(3100); return }; tryPort() })
+      tester.once('listening', () => { tester.once('close', () => resolve(port)); tester.close() })
       tester.listen(port, '127.0.0.1')
     }
     tryPort()
@@ -171,14 +202,12 @@ function findAvailablePort(startPort) {
 // ------------------------------------------------------------
 // تشغيل خادم Next.js
 // ------------------------------------------------------------
-function startServer() {
+function startServer(dbUrl) {
   return new Promise(async (resolve, reject) => {
     try {
-      const dbUrl = getDatabaseUrl()
       serverPort = await findAvailablePort(3000)
       log('[Server] Port: ' + serverPort)
 
-      // Find server.js - try multiple locations
       let serverPath = null
       const serverCandidates = []
 
@@ -197,22 +226,13 @@ function startServer() {
       }
 
       if (!serverPath) {
-        reject(new Error('server.js not found in any location'))
+        reject(new Error('server.js not found'))
         return
       }
 
       const serverCwd = path.dirname(serverPath)
       log('[Server] cwd: ' + serverCwd)
 
-      // List what's in cwd for debugging
-      try {
-        const files = fs.readdirSync(serverCwd)
-        log('[Server] cwd contents: ' + files.slice(0, 20).join(', '))
-      } catch (e) {
-        log('[Server] Could not list cwd: ' + e.message)
-      }
-
-      // CRITICAL: ELECTRON_RUN_AS_NODE=1
       const env = {
         ...process.env,
         ELECTRON_RUN_AS_NODE: '1',
@@ -236,16 +256,12 @@ function startServer() {
 
       serverProcess.stdout.on('data', (data) => {
         const text = data.toString().trim()
-        if (text) {
-          log('[server:out] ' + text)
-        }
+        if (text) log('[server:out] ' + text)
       })
 
       serverProcess.stderr.on('data', (data) => {
         const text = data.toString().trim()
-        if (text) {
-          log('[server:err] ' + text)
-        }
+        if (text) log('[server:err] ' + text)
       })
 
       serverProcess.on('error', (err) => {
@@ -256,12 +272,11 @@ function startServer() {
       serverProcess.on('exit', (code, signal) => {
         log('[Server] exit: code=' + code + ' signal=' + signal)
         if (code !== 0 && code !== null && !isQuitting) {
-          reject(new Error('Server exited early (code=' + code + '). Check log: ' + logFile))
+          reject(new Error('Server exited early (code=' + code + ')'))
         }
         serverProcess = null
       })
 
-      // Wait for server to be ready
       let attempts = 0
       const maxAttempts = 60
 
@@ -331,7 +346,7 @@ function createWindow() {
     : [path.join(__dirname, '..', 'public', 'moto-world-logo.jpg')]
 
   for (const p of iconCandidates) {
-    if (fs.existsSync(p)) { iconPath = p; log('[Window] Icon: ' + p); break }
+    if (fs.existsSync(p)) { iconPath = p; break }
   }
 
   mainWindow = new BrowserWindow({
@@ -375,15 +390,23 @@ app.whenReady().then(async () => {
   log('userData: ' + app.getPath('userData'))
 
   try {
-    await startServer()
-    log('[App] Server running, creating window...')
+    // CRITICAL: Create database tables BEFORE starting server
+    log('[App] Step 1: Ensure database tables exist...')
+    const dbResult = ensureDatabaseTables()
+    if (dbResult.error) {
+      log('[App] DB warning: ' + dbResult.error + ' (will try to continue anyway)')
+    }
+
+    log('[App] Step 2: Start server...')
+    await startServer(dbResult.dbUrl)
+
+    log('[App] Step 3: Create window...')
     createWindow()
-    log('[App] App running')
+    log('[App] ✓ App running')
   } catch (err) {
     log('[App] FAILED: ' + err.message)
     log('[App] Stack: ' + (err.stack || 'no stack'))
 
-    // Show error WITH the log content
     let logContent = ''
     try {
       if (logFile && fs.existsSync(logFile)) {
@@ -401,7 +424,6 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
-  log('=== window-all-closed ===')
   isQuitting = true
   killServer()
   app.quit()
@@ -416,9 +438,7 @@ process.on('exit', () => { killServer() })
 
 process.on('uncaughtException', (err) => {
   log('[FATAL] uncaughtException: ' + err.message + '\n' + err.stack)
-  try {
-    dialog.showErrorBox('Fatal Error', err.message + '\n\nLog: ' + (logFile || ''))
-  } catch (e) {}
+  try { dialog.showErrorBox('Fatal Error', err.message + '\n\nLog: ' + (logFile || '')) } catch (e) {}
 })
 
 process.on('unhandledRejection', (reason) => {
