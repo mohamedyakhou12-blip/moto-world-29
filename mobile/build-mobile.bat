@@ -94,7 +94,7 @@ echo.
 echo 1. Install "Expo Go" on your Android phone
 echo    (from Google Play Store)
 echo.
-echo 2. Run: npx expo start
+echo 2. Run: npx expo start --tunnel
 echo.
 echo 3. Scan the QR code with your phone camera
 echo.
@@ -107,9 +107,9 @@ echo Do you want to start Expo now? (Y/N)
 set /p choice=""
 if /i "%choice%"=="Y" (
     echo.
-    echo Starting Expo...
+    echo Starting Expo with tunnel (works over internet)...
     echo Press Ctrl+C to stop.
     echo.
-    call npx expo start
+    call npx expo start --tunnel
 )
 pause
