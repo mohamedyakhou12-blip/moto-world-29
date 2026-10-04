@@ -126,7 +126,7 @@ echo.
 echo Step 2: Building APK (10-20 min in cloud)...
 echo This will take time. DO NOT close this window.
 echo.
-call npx eas-cli build -p android --profile preview --non-interactive
+call npx eas-cli init --id moto-world-29 && call npx eas-cli build -p android --profile preview 
 if errorlevel 1 (
     echo.
     echo Build failed. Check errors above.
