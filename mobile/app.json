@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Moto World 29",
+    "slug": "moto-world-29",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0a0a0a",
+      "resizeMode": "contain",
+      "image": "./assets/splash.png"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.motoworld29.app"
+    },
+    "android": {
+      "package": "com.motoworld29.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0a0a0a"
+      }
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-sharing",
+      "expo-print"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "moto-world-29"
+      }
+    },
+    "owner": "moto-world-29"
+  }
+}
