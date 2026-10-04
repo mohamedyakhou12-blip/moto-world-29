@@ -78,8 +78,8 @@ echo ============================================
 echo   Choose an option:
 echo ============================================
 echo.
-echo   1. Test on phone (Expo Go - needs internet)
-echo   2. Build APK (EAS Build - produces standalone APK)
+echo   1. Test on phone with Expo Go (needs internet)
+echo   2. Build standalone APK (EAS Build - 10-20 min cloud)
 echo   3. Exit
 echo.
 set /p choice="Enter 1, 2, or 3: "
@@ -93,10 +93,10 @@ goto menu
 :test_expo
 echo.
 echo ============================================
-echo   Starting Expo (tunnel mode)...
+echo   Starting Expo with tunnel...
 echo ============================================
 echo.
-echo 1. Install "Expo Go" on your Android phone
+echo 1. Install "Expo Go" on your Android phone (Google Play)
 echo 2. Scan the QR code with phone camera
 echo 3. App opens in Expo Go
 echo.
@@ -113,23 +113,31 @@ echo   Building APK with EAS
 echo ============================================
 echo.
 echo This requires a free Expo account.
-echo If you don't have one, create it at: https://expo.dev
+echo If you do not have one, the script will help you create one.
 echo.
-echo Step 1: Login to Expo
+
+echo Step 1: Login to Expo (creates account if needed)
 call npx eas-cli login
-if errorlevel 1 (
-    echo Login failed. Try again or create account at expo.dev
-    pause
-    exit /b 1
-)
 echo.
-echo Step 2: Building APK (10-20 min in cloud)...
-echo This will take time. DO NOT close this window.
+
+echo Step 2: Initialize EAS project
+call npx eas-cli init --id moto-world-29
 echo.
-call npx eas-cli init --id moto-world-29 && call npx eas-cli build -p android --profile preview 
+
+echo Step 3: Building APK (10-20 min in cloud)...
+echo DO NOT close this window.
+echo.
+call npx eas-cli build -p android --profile preview
 if errorlevel 1 (
     echo.
-    echo Build failed. Check errors above.
+    echo ============================================
+    echo   Build failed
+    echo ============================================
+    echo Common fixes:
+    echo - Make sure you are logged in (eas login)
+    echo - Make sure app.json has valid config
+    echo - Check the error above
+    echo.
     pause
     exit /b 1
 )
@@ -138,12 +146,11 @@ echo ============================================
 echo   Build Complete!
 echo ============================================
 echo.
-echo Check your Expo dashboard for the APK download link:
-echo https://expo.dev/accounts/[your-account]/projects/moto-world-29/builds
+echo The APK download link should appear above.
+echo Check your Expo dashboard:
+echo https://expo.dev
 echo.
-echo Or check the email associated with your Expo account.
-echo.
-echo Download the APK, transfer to your phone, install it.
+echo Download the APK, transfer to phone, install.
 echo.
 pause
 exit /b 0
