@@ -121,7 +121,7 @@ call npx eas-cli login
 echo.
 
 echo Step 2: Initialize EAS project
-call npx eas-cli init --id moto-world-29
+call npx eas-cli init
 echo.
 
 echo Step 3: Building APK (10-20 min in cloud)...
