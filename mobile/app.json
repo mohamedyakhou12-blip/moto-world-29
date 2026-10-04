@@ -23,11 +23,7 @@
         "backgroundColor": "#0a0a0a"
       }
     },
-    "plugins": [
-      "expo-sqlite",
-      "expo-sharing",
-      "expo-print"
-    ],
+    "plugins": [],
     "extra": {
       "eas": {
         "projectId": "moto-world-29"
